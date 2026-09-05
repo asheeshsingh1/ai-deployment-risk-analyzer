@@ -1,15 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import (
-    DateTime,
-    Enum as SQLEnum,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-    UniqueConstraint,
-)
+from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -31,10 +23,7 @@ class IncidentSeverity(str, Enum):
 class Repository(Base):
     __tablename__ = "repositories"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     name: Mapped[str] = mapped_column(
         String(255),
@@ -53,7 +42,7 @@ class Repository(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
 
@@ -64,7 +53,6 @@ class Repository(Base):
 
     deployments: Mapped[list["Deployment"]] = relationship(
         back_populates="repository",
-        cascade="all, delete-orphan",
     )
 
     __table_args__ = (
@@ -79,10 +67,7 @@ class Repository(Base):
 class Service(Base):
     __tablename__ = "services"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     repository_id: Mapped[int] = mapped_column(
         ForeignKey("repositories.id"),
@@ -96,7 +81,7 @@ class Service(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
 
@@ -112,6 +97,11 @@ class Service(Base):
         back_populates="service",
     )
 
+    paths: Mapped[list["ServicePath"]] = relationship(
+        back_populates="service",
+        cascade="all, delete-orphan",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "repository_id",
@@ -121,13 +111,44 @@ class Service(Base):
     )
 
 
+class ServicePath(Base):
+    __tablename__ = "service_paths"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    service_id: Mapped[int] = mapped_column(
+        ForeignKey("services.id"),
+        nullable=False,
+    )
+
+    path_prefix: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    service: Mapped["Service"] = relationship(
+        back_populates="paths",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "service_id",
+            "path_prefix",
+            name="uq_service_path",
+        ),
+    )
+
+
 class Deployment(Base):
     __tablename__ = "deployments"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     repository_id: Mapped[int] = mapped_column(
         ForeignKey("repositories.id"),
@@ -145,7 +166,6 @@ class Deployment(Base):
     )
 
     status: Mapped[DeploymentStatus] = mapped_column(
-        SQLEnum(DeploymentStatus),
         nullable=False,
     )
 
@@ -170,10 +190,7 @@ class Deployment(Base):
 class Incident(Base):
     __tablename__ = "incidents"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     service_id: Mapped[int] = mapped_column(
         ForeignKey("services.id"),
@@ -186,17 +203,16 @@ class Incident(Base):
     )
 
     title: Mapped[str] = mapped_column(
-        String(500),
+        String(255),
         nullable=False,
     )
 
-    description: Mapped[str | None] = mapped_column(
+    description: Mapped[str] = mapped_column(
         Text,
-        nullable=True,
+        nullable=False,
     )
 
     severity: Mapped[IncidentSeverity] = mapped_column(
-        SQLEnum(IncidentSeverity),
         nullable=False,
     )
 

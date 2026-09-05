@@ -10,6 +10,8 @@ class Settings(BaseSettings):
 
     database_url: str
 
+    github_token: str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

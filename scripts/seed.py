@@ -10,52 +10,48 @@ from app.db.models import (
     IncidentSeverity,
     Repository,
     Service,
+    ServicePath,
 )
 
 
-def seed_database() -> None:
+def seed() -> None:
     db = SessionLocal()
 
     try:
-        # Make the script idempotent.
-        # Running it multiple times should not create duplicate data.
-        db.execute(delete(Incident))
-        db.execute(delete(Deployment))
-        db.execute(delete(Service))
-        db.execute(delete(Repository))
-        db.commit()
-
         now = datetime.now(timezone.utc)
 
+        # Reset existing seed data.
+        db.execute(delete(Incident))
+        db.execute(delete(Deployment))
+        db.execute(delete(ServicePath))
+        db.execute(delete(Service))
+        db.execute(delete(Repository))
+
         # ---------------------------------------------------------
-        # Repository
+        # payments-platform
         # ---------------------------------------------------------
 
-        repository = Repository(
+        payments_repo = Repository(
             name="payments-platform",
-            github_owner="example-org",
+            github_owner="example",
             github_repo="payments-platform",
         )
 
-        db.add(repository)
+        db.add(payments_repo)
         db.flush()
 
-        # ---------------------------------------------------------
-        # Services
-        # ---------------------------------------------------------
-
         payment_service = Service(
-            repository_id=repository.id,
+            repository_id=payments_repo.id,
             name="payment-service",
         )
 
         billing_service = Service(
-            repository_id=repository.id,
+            repository_id=payments_repo.id,
             name="billing-service",
         )
 
         user_service = Service(
-            repository_id=repository.id,
+            repository_id=payments_repo.id,
             name="user-service",
         )
 
@@ -69,135 +65,173 @@ def seed_database() -> None:
 
         db.flush()
 
-        # ---------------------------------------------------------
-        # Deployment history
-        # ---------------------------------------------------------
+        db.add_all(
+            [
+                ServicePath(
+                    service_id=payment_service.id,
+                    path_prefix="services/payment-service",
+                ),
+                ServicePath(
+                    service_id=billing_service.id,
+                    path_prefix="services/billing-service",
+                ),
+                ServicePath(
+                    service_id=user_service.id,
+                    path_prefix="services/user-service",
+                ),
+            ]
+        )
+
+        db.flush()
 
         deployments = [
             Deployment(
-                repository_id=repository.id,
+                repository_id=payments_repo.id,
                 service_id=payment_service.id,
-                commit_sha="a1b2c3d4e5f6",
+                commit_sha="payment-001",
                 status=DeploymentStatus.SUCCESS,
                 deployed_at=now - timedelta(days=30),
             ),
             Deployment(
-                repository_id=repository.id,
+                repository_id=payments_repo.id,
                 service_id=payment_service.id,
-                commit_sha="b2c3d4e5f6a7",
-                status=DeploymentStatus.SUCCESS,
+                commit_sha="payment-002",
+                status=DeploymentStatus.FAILED,
                 deployed_at=now - timedelta(days=25),
             ),
             Deployment(
-                repository_id=repository.id,
+                repository_id=payments_repo.id,
                 service_id=payment_service.id,
-                commit_sha="c3d4e5f6a7b8",
-                status=DeploymentStatus.FAILED,
+                commit_sha="payment-003",
+                status=DeploymentStatus.SUCCESS,
                 deployed_at=now - timedelta(days=20),
             ),
             Deployment(
-                repository_id=repository.id,
+                repository_id=payments_repo.id,
                 service_id=payment_service.id,
-                commit_sha="d4e5f6a7b8c9",
+                commit_sha="payment-004",
                 status=DeploymentStatus.ROLLED_BACK,
                 deployed_at=now - timedelta(days=15),
             ),
             Deployment(
-                repository_id=repository.id,
+                repository_id=payments_repo.id,
                 service_id=payment_service.id,
-                commit_sha="e5f6a7b8c9d0",
+                commit_sha="payment-005",
                 status=DeploymentStatus.SUCCESS,
                 deployed_at=now - timedelta(days=10),
             ),
             Deployment(
-                repository_id=repository.id,
+                repository_id=payments_repo.id,
                 service_id=payment_service.id,
-                commit_sha="f6a7b8c9d0e1",
+                commit_sha="payment-006",
                 status=DeploymentStatus.SUCCESS,
                 deployed_at=now - timedelta(days=5),
             ),
             Deployment(
-                repository_id=repository.id,
+                repository_id=payments_repo.id,
                 service_id=billing_service.id,
-                commit_sha="111aaa222bbb",
+                commit_sha="billing-001",
                 status=DeploymentStatus.SUCCESS,
-                deployed_at=now - timedelta(days=12),
+                deployed_at=now - timedelta(days=20),
             ),
             Deployment(
-                repository_id=repository.id,
+                repository_id=payments_repo.id,
                 service_id=billing_service.id,
-                commit_sha="222bbb333ccc",
+                commit_sha="billing-002",
                 status=DeploymentStatus.SUCCESS,
-                deployed_at=now - timedelta(days=6),
+                deployed_at=now - timedelta(days=10),
             ),
             Deployment(
-                repository_id=repository.id,
+                repository_id=payments_repo.id,
                 service_id=user_service.id,
-                commit_sha="333ccc444ddd",
+                commit_sha="user-001",
                 status=DeploymentStatus.SUCCESS,
-                deployed_at=now - timedelta(days=8),
+                deployed_at=now - timedelta(days=7),
             ),
         ]
 
         db.add_all(deployments)
         db.flush()
 
-        # ---------------------------------------------------------
-        # Incidents
-        # ---------------------------------------------------------
-
         incidents = [
             Incident(
                 service_id=payment_service.id,
-                deployment_id=deployments[2].id,
-                title="Payment API elevated error rate",
-                description=(
-                    "Payment failures increased after deployment. "
-                    "Rollback was required."
-                ),
+                deployment_id=deployments[1].id,
+                title="Payment API errors",
+                description="Elevated payment API failures.",
                 severity=IncidentSeverity.HIGH,
                 started_at=now - timedelta(days=20),
-                resolved_at=now - timedelta(days=20, hours=-2),
+                resolved_at=(
+                    now - timedelta(days=20)
+                    + timedelta(hours=2)
+                ),
             ),
             Incident(
                 service_id=payment_service.id,
                 deployment_id=deployments[3].id,
-                title="Payment service latency spike",
-                description=(
-                    "P99 latency increased significantly after deployment."
-                ),
+                title="Payment rollback",
+                description="Deployment required rollback.",
                 severity=IncidentSeverity.MEDIUM,
                 started_at=now - timedelta(days=15),
-                resolved_at=now - timedelta(days=14, hours=-4),
+                resolved_at=(
+                    now - timedelta(days=15)
+                    + timedelta(hours=4)
+                ),
             ),
             Incident(
                 service_id=billing_service.id,
                 deployment_id=deployments[6].id,
-                title="Billing API timeout",
-                description=(
-                    "Temporary timeout issues following billing deployment."
-                ),
+                title="Billing latency",
+                description="Temporary billing latency increase.",
                 severity=IncidentSeverity.LOW,
                 started_at=now - timedelta(days=12),
-                resolved_at=now - timedelta(days=12, hours=-1),
+                resolved_at=(
+                    now - timedelta(days=12)
+                    + timedelta(hours=1)
+                ),
             ),
         ]
 
         db.add_all(incidents)
 
+        # ---------------------------------------------------------
+        # tasker
+        # ---------------------------------------------------------
+
+        tasker_repo = Repository(
+            name="tasker",
+            github_owner="asheeshsingh1",
+            github_repo="tasker",
+        )
+
+        db.add(tasker_repo)
+        db.flush()
+
+        tasker_service = Service(
+            repository_id=tasker_repo.id,
+            name="tasker-service",
+        )
+
+        db.add(tasker_service)
+        db.flush()
+
+        # Explicit ownership mapping for the repository.
+        db.add_all(
+            [
+                ServicePath(
+                    service_id=tasker_service.id,
+                    path_prefix="api",
+                ),
+                ServicePath(
+                    service_id=tasker_service.id,
+                    path_prefix="app",
+                ),
+            ]
+        )
+
         db.commit()
 
-        print("Database seeded successfully.")
-        print()
-        print(f"Repository: {repository.name}")
-        print(
-            "Services:",
-            payment_service.name,
-            billing_service.name,
-            user_service.name,
-        )
-        print(f"Deployments: {len(deployments)}")
-        print(f"Incidents: {len(incidents)}")
+        print("Seed completed successfully.")
 
     except Exception:
         db.rollback()
@@ -208,4 +242,4 @@ def seed_database() -> None:
 
 
 if __name__ == "__main__":
-    seed_database()
+    seed()

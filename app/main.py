@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.api.health import router as health_router
 from app.api.risk import router as risk_router
+from app.api.github import router as github_router
 from app.config import get_settings
 
 
@@ -17,7 +18,7 @@ app = FastAPI(
 
 app.include_router(health_router)
 app.include_router(risk_router)
-
+app.include_router(github_router)
 
 @app.get("/")
 def root() -> dict:
