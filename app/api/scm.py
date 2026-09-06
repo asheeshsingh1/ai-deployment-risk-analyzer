@@ -5,7 +5,7 @@ from app.analyzer.schemas import ChangeAnalysis
 from app.analyzer.service import ChangeAnalyzer
 from app.db.database import get_db
 from app.risk.schemas import ChangeRequestRiskAssessment
-from app.risk.service import PRRiskService
+from app.risk.service import ChangeRequestRiskService
 from app.scm.factory import get_scm_provider
 
 
@@ -27,7 +27,11 @@ def analyze_change(
     db: Session = Depends(get_db),
 ) -> ChangeAnalysis:
     try:
-        scm_provider = get_scm_provider(provider)
+        normalized_provider = provider.lower()
+
+        scm_provider = get_scm_provider(
+            normalized_provider
+        )
 
         change_request = (
             scm_provider.get_change_request(
@@ -41,7 +45,7 @@ def analyze_change(
 
         return analyzer.analyze(
             repository=f"{owner}/{repo}",
-            provider=provider.lower(),
+            provider=normalized_provider,
             change_request=change_request,
         )
 
@@ -64,7 +68,11 @@ def assess_change_risk(
     db: Session = Depends(get_db),
 ) -> ChangeRequestRiskAssessment:
     try:
-        scm_provider = get_scm_provider(provider)
+        normalized_provider = provider.lower()
+
+        scm_provider = get_scm_provider(
+            normalized_provider
+        )
 
         change_request = (
             scm_provider.get_change_request(
@@ -78,11 +86,11 @@ def assess_change_risk(
 
         change_analysis = analyzer.analyze(
             repository=f"{owner}/{repo}",
-            provider=provider.lower(),
+            provider=normalized_provider,
             change_request=change_request,
         )
 
-        risk_service = PRRiskService(db)
+        risk_service = ChangeRequestRiskService(db)
 
         return risk_service.assess(
             change_analysis=change_analysis,

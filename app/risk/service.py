@@ -12,7 +12,7 @@ from app.risk.schemas import (
 from app.scm.schemas import CodeChangeRequest
 
 
-class PRRiskService:
+class ChangeRequestRiskService:
     def __init__(self, db: Session):
         self.db = db
         self.risk_engine = RiskEngine(db)

@@ -166,6 +166,7 @@ class ChangeAnalyzer:
         risk_signals = sorted(set(risk_signals))
 
         return ChangeAnalysis(
+            provider=provider,
             repository=repository,
             change_request_number=change_request.number,
             files_changed=len(change_request.files),
@@ -177,10 +178,7 @@ class ChangeAnalyzer:
                 file.deletions
                 for file in change_request.files
             ),
-            changed_files=[
-                file.model_dump()
-                for file in change_request.files
-            ],
+            changed_files=change_request.files,
             affected_services=affected_services,
             change_types=change_types,
             risk_signals=risk_signals,

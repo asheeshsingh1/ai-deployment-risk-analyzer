@@ -7,7 +7,7 @@ from app.config import get_settings
 from app.db.database import get_db
 from app.scm.github.client import GitHubClient
 from app.risk.schemas import AIRiskAssessment
-from app.risk.service import PRRiskService
+from app.risk.service import ChangeRequestRiskService
 
 
 router = APIRouter(
@@ -75,7 +75,7 @@ def assess_pull_request_risk(
         pull_request=pull_request,
     )
 
-    risk_service = PRRiskService(db)
+    risk_service = ChangeRequestRiskService(db)
 
     return risk_service.assess(
         change_analysis=change_analysis,

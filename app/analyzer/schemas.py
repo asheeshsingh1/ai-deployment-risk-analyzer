@@ -1,15 +1,19 @@
 from pydantic import BaseModel, Field
 
+from app.scm.schemas import ChangedFile
+
 
 class ChangeAnalysis(BaseModel):
+    provider: str
     repository: str
+
     change_request_number: int
 
     files_changed: int
     lines_added: int
     lines_deleted: int
 
-    changed_files: list[dict] = Field(
+    changed_files: list[ChangedFile] = Field(
         default_factory=list
     )
 

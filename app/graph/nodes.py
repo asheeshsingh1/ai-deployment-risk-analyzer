@@ -40,7 +40,7 @@ def prepare_context(
     context = f"""
 Repository: {assessment.repository}
 
-Pull request:
+Change Request:
 - Number: {assessment.change_request_number}
 - Title: {assessment.change_request_title}
 
