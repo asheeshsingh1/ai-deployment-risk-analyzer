@@ -2,6 +2,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from app.history.schemas import HistoricalIntelligence
 from app.scm.schemas import ChangedFile
 
 
@@ -15,40 +16,61 @@ class RiskLevel(str, Enum):
 class RiskFactor(BaseModel):
     name: str
     description: str
-    score: int = Field(ge=0, le=100)
+    score: int = Field(
+        ge=0,
+        le=100,
+    )
 
 
 class RiskAssessment(BaseModel):
     service: str
-    score: int = Field(ge=0, le=100)
+
+    score: int = Field(
+        ge=0,
+        le=100,
+    )
+
     level: RiskLevel
+
     factors: list[RiskFactor]
+
     recommendation: str
+
+    historical_intelligence: HistoricalIntelligence | None = None
 
 
 class ChangeRequestRiskAssessment(BaseModel):
     repository: str
+
     change_request_number: int
+
     change_request_title: str
 
     affected_services: list[str]
 
     change_types: list[str]
+
     risk_signals: list[str]
 
     files_changed: int
+
     lines_added: int
+
     lines_deleted: int
 
     changed_files: list[ChangedFile]
 
     service_assessments: list[RiskAssessment]
 
-    overall_score: int = Field(ge=0, le=100)
+    overall_score: int = Field(
+        ge=0,
+        le=100,
+    )
 
     overall_level: RiskLevel
 
     recommendation: str
 
     ai_explanation: str
+
     ai_recommendation: str

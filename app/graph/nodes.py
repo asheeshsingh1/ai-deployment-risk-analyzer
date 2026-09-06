@@ -1,5 +1,4 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.config import get_settings
@@ -13,20 +12,68 @@ def prepare_context(
 
     factors = "\n".join(
         (f"- {factor.name}: " f"{factor.description} " f"(score: {factor.score})")
-        for service_assessment in (assessment.service_assessments)
+        for service_assessment in assessment.service_assessments
         for factor in service_assessment.factors
+    )
+
+    historical_sections = []
+
+    for service_assessment in assessment.service_assessments:
+        historical = service_assessment.historical_intelligence
+
+        if historical is None:
+            continue
+
+        deployment_history = historical.deployments
+
+        incident_history = historical.incidents
+
+        historical_sections.append(
+            f"""
+Service: {historical.service}
+
+Historical window:
+- {historical.window_days} days
+
+Deployments:
+- Total: {deployment_history.total_deployments}
+- Successful: {deployment_history.successful_deployments}
+- Failed: {deployment_history.failed_deployments}
+- Rolled back: {deployment_history.rolled_back_deployments}
+- Failure/rollback rate: {deployment_history.failure_rate:.0%}
+- Rollback rate: {deployment_history.rollback_rate:.0%}
+- Deployments in last 30 days:
+  {deployment_history.recent_deployments}
+
+Incidents:
+- Total: {incident_history.total_incidents}
+- Low: {incident_history.low_severity}
+- Medium: {incident_history.medium_severity}
+- High: {incident_history.high_severity}
+- Critical: {incident_history.critical_severity}
+- Incidents in last 30 days:
+  {incident_history.recent_incidents}
+
+Historical evidence:
+{chr(10).join(
+    f"- {item}"
+    for item in historical.evidence
+) or "- None"}
+""".strip()
+        )
+
+    historical_context = (
+        "\n\n".join(historical_sections) or "Historical intelligence unavailable."
     )
 
     changed_files = (
         "\n".join(
-            f"- {file.filename} "
-            f"({file.status}, "
-            f"+{file.additions}/-{file.deletions})"
-            for file in getattr(
-                assessment,
-                "changed_files",
-                [],
+            (
+                f"- {file.filename} "
+                f"({file.status}, "
+                f"+{file.additions}/-{file.deletions})"
             )
+            for file in assessment.changed_files
         )
         or "Changed file details unavailable."
     )
@@ -67,7 +114,10 @@ Deterministic risk level:
 {assessment.overall_level.value}
 
 Risk factors:
-{factors or "- No historical risk factors."}
+{factors or "- No risk factors."}
+
+Historical Intelligence:
+{historical_context}
 
 Changed files:
 {changed_files}
@@ -84,11 +134,6 @@ def generate_analysis(
 ) -> RiskGraphState:
     settings = get_settings()
 
-    # llm = ChatOpenAI(
-    #     model=settings.openai_model,
-    #     api_key=settings.openai_api_key,
-    #     temperature=0,
-    # )
     llm = ChatGoogleGenerativeAI(
         model=settings.gemini_model,
         google_api_key=settings.gemini_api_key,
@@ -114,12 +159,17 @@ deployment guidance.
 
 Focus on:
 1. What changed.
-2. Why the historical evidence matters.
-3. What makes this deployment risky or safe.
-4. What should be done before and during deployment.
+2. What the historical deployment and incident data shows.
+3. Why that historical evidence matters for this change.
+4. What makes this deployment risky or safe.
+5. What should be done before and during deployment.
 
-Do not invent incidents, metrics, services, or facts that
-are not present in the provided context.
+Use only facts present in the supplied context.
+
+Do not invent incidents, metrics, services, deployment
+history, or relationships between changes and incidents.
+
+Be explicit when historical evidence is limited.
 
 Return exactly two sections:
 
@@ -145,7 +195,7 @@ A concise actionable deployment recommendation.
         }
     )
 
-    content = response.content
+    content = str(response.content)
 
     explanation = content
     recommendation = ""
