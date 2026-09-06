@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.analyzer.schemas import ChangeAnalysis
 from app.analyzer.service import ChangeAnalyzer
 from app.db.database import get_db
 from app.risk.schemas import ChangeRequestRiskAssessment
@@ -15,9 +15,28 @@ from app.scm.exceptions import (
 from app.scm.factory import get_scm_provider
 
 router = APIRouter(
-    prefix="/api/v1/scm",
-    tags=["scm"],
+    prefix="/api/v1/analysis",
+    tags=["analysis"],
 )
+
+
+class AnalysisRequest(BaseModel):
+    provider: str = Field(
+        min_length=1,
+        description="SCM provider, e.g. github or gitlab.",
+    )
+    owner: str = Field(
+        min_length=1,
+        description="Repository owner or namespace.",
+    )
+    repository: str = Field(
+        min_length=1,
+        description="Repository name.",
+    )
+    change_number: int = Field(
+        gt=0,
+        description="PR number or MR IID.",
+    )
 
 
 def _raise_scm_http_error(exc: SCMProviderError) -> None:
@@ -61,73 +80,30 @@ def _raise_scm_http_error(exc: SCMProviderError) -> None:
     ) from exc
 
 
-@router.get(
-    "/{provider}/{owner}/{repo}/changes/{change_number}",
-    response_model=ChangeAnalysis,
-)
-def analyze_change(
-    provider: str,
-    owner: str,
-    repo: str,
-    change_number: int,
-    db: Session = Depends(get_db),
-) -> ChangeAnalysis:
-    normalized_provider = provider.lower()
-
-    try:
-        scm_provider = get_scm_provider(normalized_provider)
-
-        change_request = scm_provider.get_change_request(
-            owner=owner,
-            repository=repo,
-            change_number=change_number,
-        )
-
-        analyzer = ChangeAnalyzer(db)
-
-        return analyzer.analyze(
-            repository=f"{owner}/{repo}",
-            provider=normalized_provider,
-            change_request=change_request,
-        )
-
-    except SCMProviderError as exc:
-        _raise_scm_http_error(exc)
-
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        ) from exc
-
-
-@router.get(
-    "/{provider}/{owner}/{repo}/changes/{change_number}/risk",
+@router.post(
+    "",
     response_model=ChangeRequestRiskAssessment,
 )
-def assess_change_risk(
-    provider: str,
-    owner: str,
-    repo: str,
-    change_number: int,
+def analyze_change(
+    request: AnalysisRequest,
     db: Session = Depends(get_db),
 ) -> ChangeRequestRiskAssessment:
-    normalized_provider = provider.lower()
+    provider = request.provider.lower()
 
     try:
-        scm_provider = get_scm_provider(normalized_provider)
+        scm_provider = get_scm_provider(provider)
 
         change_request = scm_provider.get_change_request(
-            owner=owner,
-            repository=repo,
-            change_number=change_number,
+            owner=request.owner,
+            repository=request.repository,
+            change_number=request.change_number,
         )
 
         analyzer = ChangeAnalyzer(db)
 
         change_analysis = analyzer.analyze(
-            repository=f"{owner}/{repo}",
-            provider=normalized_provider,
+            repository=f"{request.owner}/{request.repository}",
+            provider=provider,
             change_request=change_request,
         )
 

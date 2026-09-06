@@ -136,7 +136,7 @@ def generate_analysis(
 
     llm = ChatGoogleGenerativeAI(
         model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
+        google_api_key=settings.require_gemini_api_key(),
         temperature=0,
     )
 

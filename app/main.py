@@ -5,6 +5,8 @@ from app.api.repositories import router as repositories_router
 from app.api.risk import router as risk_router
 from app.api.scm import router as scm_router
 from app.api.services import router as services_router
+from app.api.analysis import router as analysis_router
+from app.api.history import router as history_router
 from app.config import get_settings
 
 
@@ -21,6 +23,8 @@ app.include_router(risk_router)
 app.include_router(scm_router)
 app.include_router(repositories_router)
 app.include_router(services_router)
+app.include_router(analysis_router)
+app.include_router(history_router)
 
 
 @app.get("/")
