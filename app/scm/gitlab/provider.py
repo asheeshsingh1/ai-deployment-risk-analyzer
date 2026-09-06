@@ -94,16 +94,51 @@ class GitLabProvider(SCMProvider):
         changes = data.get("changes", [])
 
         return [
-            ChangedFile(
-                filename=change["new_path"],
-                status=self._get_file_status(change),
-                additions=0,
-                deletions=0,
-                changes=0,
-                patch=change.get("diff"),
-            )
+            self._build_changed_file(change)
             for change in changes
         ]
+
+    @classmethod
+    def _build_changed_file(
+        cls,
+        change: dict[str, Any],
+    ) -> ChangedFile:
+        diff = change.get("diff") or ""
+
+        additions, deletions = (
+            cls._count_diff_lines(diff)
+        )
+
+        return ChangedFile(
+            filename=change["new_path"],
+            status=cls._get_file_status(change),
+            additions=additions,
+            deletions=deletions,
+            changes=additions + deletions,
+            patch=diff,
+        )
+
+    @staticmethod
+    def _count_diff_lines(
+        diff: str,
+    ) -> tuple[int, int]:
+        additions = 0
+        deletions = 0
+
+        for line in diff.splitlines():
+            if line.startswith("+++"):
+                continue
+
+            if line.startswith("---"):
+                continue
+
+            if line.startswith("+"):
+                additions += 1
+
+            elif line.startswith("-"):
+                deletions += 1
+
+        return additions, deletions
 
     @staticmethod
     def _get_file_status(

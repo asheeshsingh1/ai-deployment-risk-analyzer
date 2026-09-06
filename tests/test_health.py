@@ -14,5 +14,5 @@ def test_root():
     data = response.json()
 
     assert data["name"] == "deployment-risk-analyzer"
-    assert data["version"] == "0.1.0"
+    assert data["version"] == "0.4.0"
     assert data["status"] == "running"

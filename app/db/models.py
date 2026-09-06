@@ -30,12 +30,17 @@ class Repository(Base):
         nullable=False,
     )
 
-    github_owner: Mapped[str] = mapped_column(
+    provider: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    owner: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
     )
 
-    github_repo: Mapped[str] = mapped_column(
+    external_name: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
     )
@@ -57,9 +62,10 @@ class Repository(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "github_owner",
-            "github_repo",
-            name="uq_repository_github_repo",
+            "provider",
+            "owner",
+            "external_name",
+            name="uq_repository_provider_owner_name",
         ),
     )
 

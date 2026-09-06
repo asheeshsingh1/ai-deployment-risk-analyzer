@@ -33,8 +33,9 @@ def seed() -> None:
 
         payments_repo = Repository(
             name="payments-platform",
-            github_owner="example",
-            github_repo="payments-platform",
+            provider="github",
+            owner="example",
+            external_name="payments-platform",
         )
 
         db.add(payments_repo)
@@ -206,8 +207,9 @@ def seed() -> None:
 
         tasker_repo = Repository(
             name="tasker",
-            github_owner="asheeshsingh1",
-            github_repo="tasker",
+            provider="github",
+            owner="asheeshsingh1",
+            external_name="tasker",
         )
 
         db.add(tasker_repo)

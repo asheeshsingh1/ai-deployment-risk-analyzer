@@ -16,10 +16,12 @@ class ChangeAnalyzer:
     def _find_affected_services(
         self,
         change_request: CodeChangeRequest,
+        provider: str,
         owner: str,
         repo_name: str,
     ) -> tuple[list[str], bool]:
         repository = self.repository.get_repository(
+            provider=provider,
             owner=owner,
             repo_name=repo_name,
         )
@@ -105,7 +107,10 @@ class ChangeAnalyzer:
             if (
                 filename.endswith(".yaml")
                 or filename.endswith(".yml")
-                or filename.endswith("dockerfile")
+                or filename.endswith(".dockerfile")
+                or filename.endswith("/dockerfile")
+                or "/dockerfile." in filename
+                or filename.startswith("dockerfile.")
             ):
                 change_types.add("infrastructure")
                 risk_signals.add(
@@ -127,6 +132,7 @@ class ChangeAnalyzer:
     def analyze(
         self,
         repository: str,
+        provider: str,
         change_request: CodeChangeRequest,
     ) -> ChangeAnalysis:
         owner, repo_name = repository.split("/", 1)
@@ -136,6 +142,7 @@ class ChangeAnalyzer:
             repository_found,
         ) = self._find_affected_services(
             change_request=change_request,
+            provider=provider,
             owner=owner,
             repo_name=repo_name,
         )

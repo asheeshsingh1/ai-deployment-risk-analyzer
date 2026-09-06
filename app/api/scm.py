@@ -41,6 +41,7 @@ def analyze_change(
 
         return analyzer.analyze(
             repository=f"{owner}/{repo}",
+            provider=provider.lower(),
             change_request=change_request,
         )
 
@@ -77,6 +78,7 @@ def assess_change_risk(
 
         change_analysis = analyzer.analyze(
             repository=f"{owner}/{repo}",
+            provider=provider.lower(),
             change_request=change_request,
         )
 

@@ -10,12 +10,14 @@ class AnalyzerRepository:
 
     def get_repository(
         self,
+        provider: str,
         owner: str,
         repo_name: str,
     ) -> Repository | None:
         statement = select(Repository).where(
-            Repository.github_owner == owner,
-            Repository.github_repo == repo_name,
+            Repository.provider == provider,
+            Repository.owner == owner,
+            Repository.external_name == repo_name,
         )
 
         return self.db.scalar(statement)
@@ -30,7 +32,9 @@ class AnalyzerRepository:
             .order_by(Service.name)
         )
 
-        return list(self.db.scalars(statement).all())
+        return list(
+            self.db.scalars(statement).all()
+        )
 
     def get_service_paths(
         self,
@@ -50,4 +54,6 @@ class AnalyzerRepository:
             )
         )
 
-        return list(self.db.execute(statement).all())
+        return list(
+            self.db.execute(statement).all()
+        )
