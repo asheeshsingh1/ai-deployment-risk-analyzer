@@ -24,10 +24,7 @@ class GitHubClient:
         repo: str,
         pull_number: int,
     ) -> PullRequest:
-        url = (
-            f"{self.BASE_URL}/repos/"
-            f"{owner}/{repo}/pulls/{pull_number}"
-        )
+        url = f"{self.BASE_URL}/repos/" f"{owner}/{repo}/pulls/{pull_number}"
 
         response = httpx.get(
             url,
@@ -62,10 +59,7 @@ class GitHubClient:
         repo: str,
         pull_number: int,
     ) -> list[PullRequestFile]:
-        url = (
-            f"{self.BASE_URL}/repos/"
-            f"{owner}/{repo}/pulls/{pull_number}/files"
-        )
+        url = f"{self.BASE_URL}/repos/" f"{owner}/{repo}/pulls/{pull_number}/files"
 
         response = httpx.get(
             url,

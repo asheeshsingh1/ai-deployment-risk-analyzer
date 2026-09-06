@@ -160,43 +160,28 @@ def seed() -> None:
                     service_id=payment_service.id,
                     deployment_id=payment_deployments[1].id,
                     title="Payment API errors",
-                    description=(
-                        "Elevated payment API failures."
-                    ),
+                    description=("Elevated payment API failures."),
                     severity=IncidentSeverity.HIGH,
                     started_at=now - timedelta(days=20),
-                    resolved_at=(
-                        now - timedelta(days=20)
-                        + timedelta(hours=2)
-                    ),
+                    resolved_at=(now - timedelta(days=20) + timedelta(hours=2)),
                 ),
                 Incident(
                     service_id=payment_service.id,
                     deployment_id=payment_deployments[3].id,
                     title="Payment rollback",
-                    description=(
-                        "Deployment required rollback."
-                    ),
+                    description=("Deployment required rollback."),
                     severity=IncidentSeverity.MEDIUM,
                     started_at=now - timedelta(days=15),
-                    resolved_at=(
-                        now - timedelta(days=15)
-                        + timedelta(hours=4)
-                    ),
+                    resolved_at=(now - timedelta(days=15) + timedelta(hours=4)),
                 ),
                 Incident(
                     service_id=billing_service.id,
                     deployment_id=payment_deployments[6].id,
                     title="Billing latency",
-                    description=(
-                        "Temporary billing latency increase."
-                    ),
+                    description=("Temporary billing latency increase."),
                     severity=IncidentSeverity.LOW,
                     started_at=now - timedelta(days=12),
-                    resolved_at=(
-                        now - timedelta(days=12)
-                        + timedelta(hours=1)
-                    ),
+                    resolved_at=(now - timedelta(days=12) + timedelta(hours=1)),
                 ),
             ]
         )
@@ -302,15 +287,11 @@ def seed() -> None:
                     deployment_id=tasker_deployments[2].id,
                     title="Recurring task failures",
                     description=(
-                        "Scheduled recurring tasks failed "
-                        "after deployment."
+                        "Scheduled recurring tasks failed " "after deployment."
                     ),
                     severity=IncidentSeverity.HIGH,
                     started_at=now - timedelta(days=20),
-                    resolved_at=(
-                        now - timedelta(days=20)
-                        + timedelta(hours=3)
-                    ),
+                    resolved_at=(now - timedelta(days=20) + timedelta(hours=3)),
                 ),
                 Incident(
                     service_id=tasker_service.id,
@@ -322,10 +303,7 @@ def seed() -> None:
                     ),
                     severity=IncidentSeverity.MEDIUM,
                     started_at=now - timedelta(days=15),
-                    resolved_at=(
-                        now - timedelta(days=15)
-                        + timedelta(hours=2)
-                    ),
+                    resolved_at=(now - timedelta(days=15) + timedelta(hours=2)),
                 ),
             ]
         )

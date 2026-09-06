@@ -21,6 +21,4 @@ def get_scm_provider(
             token=settings.gitlab_token,
         )
 
-    raise ValueError(
-        f"Unsupported SCM provider: {provider}"
-    )
+    raise ValueError(f"Unsupported SCM provider: {provider}")

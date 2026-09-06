@@ -17,9 +17,7 @@ class RiskRepository:
         self.db = db
 
     def get_service(self, service_name: str) -> Service | None:
-        statement = select(Service).where(
-            Service.name == service_name
-        )
+        statement = select(Service).where(Service.name == service_name)
 
         return self.db.scalar(statement)
 
@@ -98,7 +96,4 @@ class RiskRepository:
             IncidentSeverity.CRITICAL,
         }
 
-        return sum(
-            incident.severity in high_severity
-            for incident in incidents
-        )
+        return sum(incident.severity in high_severity for incident in incidents)

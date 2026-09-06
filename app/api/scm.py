@@ -29,16 +29,12 @@ def analyze_change(
     try:
         normalized_provider = provider.lower()
 
-        scm_provider = get_scm_provider(
-            normalized_provider
-        )
+        scm_provider = get_scm_provider(normalized_provider)
 
-        change_request = (
-            scm_provider.get_change_request(
-                owner=owner,
-                repository=repo,
-                change_number=change_number,
-            )
+        change_request = scm_provider.get_change_request(
+            owner=owner,
+            repository=repo,
+            change_number=change_number,
         )
 
         analyzer = ChangeAnalyzer(db)
@@ -70,16 +66,12 @@ def assess_change_risk(
     try:
         normalized_provider = provider.lower()
 
-        scm_provider = get_scm_provider(
-            normalized_provider
-        )
+        scm_provider = get_scm_provider(normalized_provider)
 
-        change_request = (
-            scm_provider.get_change_request(
-                owner=owner,
-                repository=repo,
-                change_number=change_number,
-            )
+        change_request = scm_provider.get_change_request(
+            owner=owner,
+            repository=repo,
+            change_number=change_number,
         )
 
         analyzer = ChangeAnalyzer(db)

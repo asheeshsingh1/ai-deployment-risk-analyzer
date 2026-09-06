@@ -7,6 +7,7 @@ from app.analyzer.service import ChangeAnalyzer
 from app.db.models import Repository, Service, ServicePath
 from app.scm.schemas import ChangedFile, CodeChangeRequest
 
+
 @pytest.fixture(autouse=True)
 def clean_database():
     yield
@@ -16,6 +17,7 @@ def clean_database():
         db.query(Service).delete()
         db.query(Repository).delete()
         db.commit()
+
 
 engine = create_engine(
     "sqlite:///:memory:",
@@ -89,10 +91,7 @@ def test_changed_file_maps_to_service():
                 additions=1,
                 deletions=1,
                 changes=2,
-                patch=(
-                    "-ARG USERNAME=developer\n"
-                    "+ARG USERNAME=developers"
-                ),
+                patch=("-ARG USERNAME=developer\n" "+ARG USERNAME=developers"),
             )
         ],
     )
@@ -100,16 +99,12 @@ def test_changed_file_maps_to_service():
     analyzer = ChangeAnalyzer(db)
 
     result = analyzer.analyze(
-        repository=(
-            "asheeshsingh0112/ide"
-        ),
+        repository=("asheeshsingh0112/ide"),
         provider="gitlab",
         change_request=change_request,
     )
 
-    assert result.affected_services == [
-        "ide-build"
-    ]
+    assert result.affected_services == ["ide-build"]
 
     assert result.service_mapping_status == "mapped"
 
@@ -117,9 +112,7 @@ def test_changed_file_maps_to_service():
     assert result.lines_added == 1
     assert result.lines_deleted == 1
 
-    assert result.risk_signals == [
-        "infrastructure_change"
-    ]
+    assert result.risk_signals == ["infrastructure_change"]
 
     db.close()
 
@@ -142,10 +135,7 @@ def test_unmatched_path_is_unmapped():
                 additions=2,
                 deletions=0,
                 changes=2,
-                patch=(
-                    "+New documentation\n"
-                    "+More documentation"
-                ),
+                patch=("+New documentation\n" "+More documentation"),
             )
         ],
     )
@@ -153,9 +143,7 @@ def test_unmatched_path_is_unmapped():
     analyzer = ChangeAnalyzer(db)
 
     result = analyzer.analyze(
-        repository=(
-            "asheeshsingh0112/ide"
-        ),
+        repository=("asheeshsingh0112/ide"),
         provider="gitlab",
         change_request=change_request,
     )
@@ -164,9 +152,7 @@ def test_unmatched_path_is_unmapped():
 
     assert result.service_mapping_status == "unmapped"
 
-    assert result.risk_signals == [
-        "affected_service_not_identified"
-    ]
+    assert result.risk_signals == ["affected_service_not_identified"]
 
     db.close()
 
@@ -189,10 +175,7 @@ def test_unregistered_repository_is_detected():
                 additions=1,
                 deletions=1,
                 changes=2,
-                patch=(
-                    "-ARG USERNAME=developer\n"
-                    "+ARG USERNAME=developers"
-                ),
+                patch=("-ARG USERNAME=developer\n" "+ARG USERNAME=developers"),
             )
         ],
     )
@@ -216,6 +199,7 @@ def test_unregistered_repository_is_detected():
 
     db.close()
 
+
 def test_detects_dependency_change():
     db = TestingSessionLocal()
 
@@ -234,10 +218,7 @@ def test_detects_dependency_change():
                 additions=2,
                 deletions=1,
                 changes=3,
-                patch=(
-                    '-"lodash": "4.17.20"\n'
-                    '+"lodash": "4.17.21"\n'
-                ),
+                patch=('-"lodash": "4.17.20"\n' '+"lodash": "4.17.21"\n'),
             )
         ],
     )
@@ -280,10 +261,7 @@ def test_detects_security_change():
                 additions=5,
                 deletions=2,
                 changes=7,
-                patch=(
-                    "-checkPermission(user)\n"
-                    "+checkPermission(user, resource)"
-                ),
+                patch=("-checkPermission(user)\n" "+checkPermission(user, resource)"),
             )
         ],
     )
@@ -298,10 +276,7 @@ def test_detects_security_change():
 
     assert "security" in result.change_types
 
-    assert (
-        "authentication_or_authorization_change"
-        in result.risk_signals
-    )
+    assert "authentication_or_authorization_change" in result.risk_signals
 
     db.close()
 
@@ -344,14 +319,8 @@ def test_detects_potential_breaking_api_change():
         "api",
     ]
 
-    assert (
-        "api_change"
-        in result.risk_signals
-    )
+    assert "api_change" in result.risk_signals
 
-    assert (
-        "potential_breaking_api_change"
-        in result.risk_signals
-    )
+    assert "potential_breaking_api_change" in result.risk_signals
 
     db.close()

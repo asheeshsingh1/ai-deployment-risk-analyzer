@@ -92,10 +92,7 @@ class ChangeSignalDetector:
         filename: str,
         keywords: tuple[str, ...],
     ) -> bool:
-        return any(
-            keyword in filename
-            for keyword in keywords
-        )
+        return any(keyword in filename for keyword in keywords)
 
     @classmethod
     def _is_dockerfile(
@@ -104,10 +101,7 @@ class ChangeSignalDetector:
     ) -> bool:
         basename = filename.rsplit("/", 1)[-1]
 
-        return (
-            basename == "dockerfile"
-            or basename.startswith("dockerfile.")
-        )
+        return basename == "dockerfile" or basename.startswith("dockerfile.")
 
     @classmethod
     def _is_dependency_file(
@@ -125,12 +119,7 @@ class ChangeSignalDetector:
     ) -> bool:
         basename = filename.rsplit("/", 1)[-1]
 
-        return (
-            basename.startswith(".env")
-            or basename.endswith(
-                cls.CONFIG_EXTENSIONS
-            )
-        )
+        return basename.startswith(".env") or basename.endswith(cls.CONFIG_EXTENSIONS)
 
     @classmethod
     def _is_infrastructure_file(
@@ -139,9 +128,7 @@ class ChangeSignalDetector:
     ) -> bool:
         return (
             cls._is_dockerfile(filename)
-            or filename.endswith(
-                cls.INFRASTRUCTURE_EXTENSIONS
-            )
+            or filename.endswith(cls.INFRASTRUCTURE_EXTENSIONS)
             or "/k8s/" in f"/{filename}/"
             or "/kubernetes/" in f"/{filename}/"
             or "/helm/" in f"/{filename}/"
@@ -157,10 +144,7 @@ class ChangeSignalDetector:
         return cls._contains_keyword(
             filename,
             cls.AUTH_KEYWORDS,
-        ) or any(
-            keyword in patch.lower()
-            for keyword in cls.AUTH_KEYWORDS
-        )
+        ) or any(keyword in patch.lower() for keyword in cls.AUTH_KEYWORDS)
 
     @staticmethod
     def _has_breaking_api_change(
@@ -180,10 +164,7 @@ class ChangeSignalDetector:
             "request_model",
         )
 
-        return any(
-            pattern in patch_lower
-            for pattern in breaking_patterns
-        )
+        return any(pattern in patch_lower for pattern in breaking_patterns)
 
     @staticmethod
     def _is_large_change(
@@ -199,10 +180,7 @@ class ChangeSignalDetector:
         change_types: set[str] = set()
         risk_signals: set[str] = set()
 
-        total_changes = sum(
-            file.changes
-            for file in files
-        )
+        total_changes = sum(file.changes for file in files)
 
         for file in files:
             filename = cls._filename(file)
@@ -210,69 +188,47 @@ class ChangeSignalDetector:
 
             if cls._is_infrastructure_file(filename):
                 change_types.add("infrastructure")
-                risk_signals.add(
-                    "infrastructure_change"
-                )
+                risk_signals.add("infrastructure_change")
 
-            if (
-                filename.endswith(".sql")
-                or cls._contains_keyword(
-                    filename,
-                    cls.DATABASE_KEYWORDS,
-                )
+            if filename.endswith(".sql") or cls._contains_keyword(
+                filename,
+                cls.DATABASE_KEYWORDS,
             ):
                 change_types.add("database")
-                risk_signals.add(
-                    "database_change"
-                )
+                risk_signals.add("database_change")
 
             if cls._contains_keyword(
                 filename,
                 cls.API_KEYWORDS,
             ):
                 change_types.add("api")
-                risk_signals.add(
-                    "api_change"
-                )
+                risk_signals.add("api_change")
 
                 if cls._has_breaking_api_change(patch):
-                    risk_signals.add(
-                        "potential_breaking_api_change"
-                    )
+                    risk_signals.add("potential_breaking_api_change")
 
             if cls._has_auth_change(
                 filename,
                 patch,
             ):
                 change_types.add("security")
-                risk_signals.add(
-                    "authentication_or_authorization_change"
-                )
+                risk_signals.add("authentication_or_authorization_change")
 
             if cls._is_dependency_file(filename):
                 change_types.add("dependency")
-                risk_signals.add(
-                    "dependency_change"
-                )
+                risk_signals.add("dependency_change")
 
-            if (
-                cls._is_configuration_file(filename)
-                and not cls._is_dependency_file(filename)
+            if cls._is_configuration_file(filename) and not cls._is_dependency_file(
+                filename
             ):
                 change_types.add("configuration")
-                risk_signals.add(
-                    "configuration_change"
-                )
+                risk_signals.add("configuration_change")
 
             if cls._is_large_change(file):
-                risk_signals.add(
-                    "large_file_change"
-                )
+                risk_signals.add("large_file_change")
 
         if total_changes >= 500:
-            risk_signals.add(
-                "large_change"
-            )
+            risk_signals.add("large_change")
 
         return (
             sorted(change_types),

@@ -42,8 +42,7 @@ class RiskEngine:
             score=25,
             name="authentication_or_authorization_change",
             description=(
-                "Authentication or authorization behavior "
-                "is being modified."
+                "Authentication or authorization behavior " "is being modified."
             ),
         ),
         RiskSignalRule(
@@ -60,8 +59,7 @@ class RiskEngine:
             score=15,
             name="infrastructure_change",
             description=(
-                "The change modifies deployment or "
-                "infrastructure configuration."
+                "The change modifies deployment or " "infrastructure configuration."
             ),
         ),
         RiskSignalRule(
@@ -77,18 +75,13 @@ class RiskEngine:
             signal="configuration_change",
             score=10,
             name="configuration_change",
-            description=(
-                "The change modifies application configuration."
-            ),
+            description=("The change modifies application configuration."),
         ),
         RiskSignalRule(
             signal="large_change",
             score=10,
             name="large_change",
-            description=(
-                "The change contains a large number of "
-                "modified lines."
-            ),
+            description=("The change contains a large number of " "modified lines."),
         ),
         RiskSignalRule(
             signal="large_file_change",
@@ -134,30 +127,20 @@ class RiskEngine:
             )
 
         if level == RiskLevel.MEDIUM:
-            return (
-                "Use additional validation and monitor "
-                "the deployment closely."
-            )
+            return "Use additional validation and monitor " "the deployment closely."
 
-        return (
-            "Standard deployment is reasonable with "
-            "normal production monitoring."
-        )
+        return "Standard deployment is reasonable with " "normal production monitoring."
 
     def _historical_factors(
         self,
         service_id: int,
     ) -> list[RiskFactor]:
-        deployments = (
-            self.repository.get_recent_deployments(
-                service_id=service_id,
-            )
+        deployments = self.repository.get_recent_deployments(
+            service_id=service_id,
         )
 
-        incidents = (
-            self.repository.get_recent_incidents(
-                service_id=service_id,
-            )
+        incidents = self.repository.get_recent_incidents(
+            service_id=service_id,
         )
 
         factors: list[RiskFactor] = []
@@ -167,8 +150,7 @@ class RiskEngine:
                 RiskFactor(
                     name="insufficient_deployment_history",
                     description=(
-                        "No recent deployment history is "
-                        "available for this service."
+                        "No recent deployment history is " "available for this service."
                     ),
                     score=10,
                 )
@@ -184,10 +166,7 @@ class RiskEngine:
                 for deployment in deployments
             )
 
-            failure_rate = (
-                failed_or_rollback
-                / len(deployments)
-            )
+            failure_rate = failed_or_rollback / len(deployments)
 
             if failure_rate >= 0.30:
                 factors.append(
@@ -238,9 +217,7 @@ class RiskEngine:
             factors.append(
                 RiskFactor(
                     name="recent_high_severity_incident",
-                    description=(
-                        "A high-severity incident occurred recently."
-                    ),
+                    description=("A high-severity incident occurred recently."),
                     score=15,
                 )
             )
@@ -252,8 +229,7 @@ class RiskEngine:
                 RiskFactor(
                     name="high_incident_volume",
                     description=(
-                        f"{incident_count} incidents occurred "
-                        "in the last 30 days."
+                        f"{incident_count} incidents occurred " "in the last 30 days."
                     ),
                     score=20,
                 )
@@ -264,8 +240,7 @@ class RiskEngine:
                 RiskFactor(
                     name="elevated_incident_volume",
                     description=(
-                        f"{incident_count} incidents occurred "
-                        "in the last 30 days."
+                        f"{incident_count} incidents occurred " "in the last 30 days."
                     ),
                     score=10,
                 )
@@ -313,10 +288,7 @@ class RiskEngine:
 
         score = min(
             100,
-            sum(
-                factor.score
-                for factor in factors
-            ),
+            sum(factor.score for factor in factors),
         )
 
         level = self._risk_level(score)
@@ -326,7 +298,5 @@ class RiskEngine:
             score=score,
             level=level,
             factors=factors,
-            recommendation=self._recommendation(
-                level
-            ),
+            recommendation=self._recommendation(level),
         )

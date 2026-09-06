@@ -12,14 +12,8 @@ def prepare_context(
     assessment = state["risk_assessment"]
 
     factors = "\n".join(
-        (
-            f"- {factor.name}: "
-            f"{factor.description} "
-            f"(score: {factor.score})"
-        )
-        for service_assessment in (
-            assessment.service_assessments
-        )
+        (f"- {factor.name}: " f"{factor.description} " f"(score: {factor.score})")
+        for service_assessment in (assessment.service_assessments)
         for factor in service_assessment.factors
     )
 
@@ -157,11 +151,9 @@ A concise actionable deployment recommendation.
     recommendation = ""
 
     if "RECOMMENDATION:" in content:
-        explanation, recommendation = (
-            content.split(
-                "RECOMMENDATION:",
-                1,
-            )
+        explanation, recommendation = content.split(
+            "RECOMMENDATION:",
+            1,
         )
 
     explanation = explanation.replace(

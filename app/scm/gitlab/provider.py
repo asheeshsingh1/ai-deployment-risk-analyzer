@@ -93,10 +93,7 @@ class GitLabProvider(SCMProvider):
 
         changes = data.get("changes", [])
 
-        return [
-            self._build_changed_file(change)
-            for change in changes
-        ]
+        return [self._build_changed_file(change) for change in changes]
 
     @classmethod
     def _build_changed_file(
@@ -105,9 +102,7 @@ class GitLabProvider(SCMProvider):
     ) -> ChangedFile:
         diff = change.get("diff") or ""
 
-        additions, deletions = (
-            cls._count_diff_lines(diff)
-        )
+        additions, deletions = cls._count_diff_lines(diff)
 
         return ChangedFile(
             filename=change["new_path"],

@@ -41,27 +41,16 @@ class ChangeAnalyzer:
         affected_services: set[str] = set()
 
         for file in change_request.files:
-            file_path = self._normalize_path(
-                file.filename
-            )
+            file_path = self._normalize_path(file.filename)
 
             for service, service_path in service_paths:
-                prefix = self._normalize_path(
-                    service_path.path_prefix
-                )
+                prefix = self._normalize_path(service_path.path_prefix)
 
                 if not prefix:
                     continue
 
-                if (
-                    file_path == prefix
-                    or file_path.startswith(
-                        f"{prefix}/"
-                    )
-                ):
-                    affected_services.add(
-                        service.name
-                    )
+                if file_path == prefix or file_path.startswith(f"{prefix}/"):
+                    affected_services.add(service.name)
 
         return sorted(affected_services), True
 
@@ -91,14 +80,10 @@ class ChangeAnalyzer:
         )
 
         if not repository_found:
-            risk_signals.append(
-                "repository_not_registered"
-            )
+            risk_signals.append("repository_not_registered")
 
         elif not affected_services:
-            risk_signals.append(
-                "affected_service_not_identified"
-            )
+            risk_signals.append("affected_service_not_identified")
 
         risk_signals = sorted(set(risk_signals))
 
@@ -107,21 +92,11 @@ class ChangeAnalyzer:
             repository=repository,
             change_request_number=change_request.number,
             files_changed=len(change_request.files),
-            lines_added=sum(
-                file.additions
-                for file in change_request.files
-            ),
-            lines_deleted=sum(
-                file.deletions
-                for file in change_request.files
-            ),
+            lines_added=sum(file.additions for file in change_request.files),
+            lines_deleted=sum(file.deletions for file in change_request.files),
             changed_files=change_request.files,
             affected_services=affected_services,
             change_types=change_types,
             risk_signals=risk_signals,
-            service_mapping_status=(
-                "mapped"
-                if affected_services
-                else "unmapped"
-            ),
+            service_mapping_status=("mapped" if affected_services else "unmapped"),
         )

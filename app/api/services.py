@@ -115,9 +115,7 @@ def list_services(
         .order_by(Service.name)
     )
 
-    services = list(
-        db.scalars(statement).all()
-    )
+    services = list(db.scalars(statement).all())
 
     return [
         ServiceResponse(
@@ -149,7 +147,6 @@ def create_service_path(
             status_code=404,
             detail="Service not found.",
         )
-
 
     normalized_path = payload.path_prefix.strip().strip("/")
 
@@ -213,9 +210,7 @@ def list_service_paths(
         .order_by(ServicePath.path_prefix)
     )
 
-    paths = list(
-        db.scalars(statement).all()
-    )
+    paths = list(db.scalars(statement).all())
 
     return [
         ServicePathResponse(

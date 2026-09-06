@@ -29,9 +29,7 @@ class GitHubProvider(SCMProvider):
         change_number: int,
     ) -> CodeChangeRequest:
         pull_url = (
-            f"{self.BASE_URL}/repos/"
-            f"{owner}/{repository}/pulls/"
-            f"{change_number}"
+            f"{self.BASE_URL}/repos/" f"{owner}/{repository}/pulls/" f"{change_number}"
         )
 
         response = httpx.get(

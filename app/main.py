@@ -12,9 +12,7 @@ settings = get_settings()
 
 app = FastAPI(
     title="Deployment Risk Analyzer",
-    description=(
-        "AI-powered deployment risk analysis platform."
-    ),
+    description=("AI-powered deployment risk analysis platform."),
     version="0.4.0",
 )
 

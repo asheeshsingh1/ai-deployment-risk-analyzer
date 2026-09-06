@@ -32,9 +32,7 @@ class AnalyzerRepository:
             .order_by(Service.name)
         )
 
-        return list(
-            self.db.scalars(statement).all()
-        )
+        return list(self.db.scalars(statement).all())
 
     def get_service_paths(
         self,
@@ -54,6 +52,4 @@ class AnalyzerRepository:
             )
         )
 
-        return list(
-            self.db.execute(statement).all()
-        )
+        return list(self.db.execute(statement).all())
