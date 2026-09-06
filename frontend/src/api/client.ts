@@ -1,4 +1,9 @@
-const API_BASE_URL =
+import type {
+    AnalysisRequest,
+    AnalysisResponse,
+    } from "../types/analysis";
+
+    const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
     export class ApiError extends Error {
@@ -49,4 +54,13 @@ const API_BASE_URL =
     database?: string;
     }> {
     return request("/health");
+    }
+
+    export function analyzeChange(
+    payload: AnalysisRequest,
+    ): Promise<AnalysisResponse> {
+    return request<AnalysisResponse>("/api/v1/analysis", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
 }

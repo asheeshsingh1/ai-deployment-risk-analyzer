@@ -8,6 +8,7 @@ from app.api.services import router as services_router
 from app.api.analysis import router as analysis_router
 from app.api.history import router as history_router
 from app.config import get_settings
+from fastapi.middleware.cors import CORSMiddleware
 
 
 settings = get_settings()
@@ -16,6 +17,16 @@ app = FastAPI(
     title="Deployment Risk Analyzer",
     description=("AI-powered deployment risk analysis platform."),
     version="0.4.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(health_router)

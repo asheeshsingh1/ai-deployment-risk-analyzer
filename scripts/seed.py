@@ -85,6 +85,10 @@ def seed() -> None:
 
         db.flush()
 
+        # ---------------------------------------------------------
+        # payments-platform deployment history
+        # ---------------------------------------------------------
+
         payment_deployments = [
             Deployment(
                 repository_id=payments_repo.id,
@@ -154,13 +158,17 @@ def seed() -> None:
         db.add_all(payment_deployments)
         db.flush()
 
+        # ---------------------------------------------------------
+        # payments-platform incidents
+        # ---------------------------------------------------------
+
         db.add_all(
             [
                 Incident(
                     service_id=payment_service.id,
                     deployment_id=payment_deployments[1].id,
                     title="Payment API errors",
-                    description=("Elevated payment API failures."),
+                    description="Elevated payment API failures.",
                     severity=IncidentSeverity.HIGH,
                     started_at=now - timedelta(days=20),
                     resolved_at=(now - timedelta(days=20) + timedelta(hours=2)),
@@ -169,7 +177,7 @@ def seed() -> None:
                     service_id=payment_service.id,
                     deployment_id=payment_deployments[3].id,
                     title="Payment rollback",
-                    description=("Deployment required rollback."),
+                    description="Deployment required rollback.",
                     severity=IncidentSeverity.MEDIUM,
                     started_at=now - timedelta(days=15),
                     resolved_at=(now - timedelta(days=15) + timedelta(hours=4)),
@@ -178,13 +186,15 @@ def seed() -> None:
                     service_id=billing_service.id,
                     deployment_id=payment_deployments[6].id,
                     title="Billing latency",
-                    description=("Temporary billing latency increase."),
+                    description="Temporary billing latency increase.",
                     severity=IncidentSeverity.LOW,
                     started_at=now - timedelta(days=12),
                     resolved_at=(now - timedelta(days=12) + timedelta(hours=1)),
                 ),
             ]
         )
+
+        db.flush()
 
         # =========================================================
         # tasker
@@ -307,6 +317,83 @@ def seed() -> None:
                 ),
             ]
         )
+
+        db.flush()
+
+        # =========================================================
+        # ide
+        # =========================================================
+
+        ide_repo = Repository(
+            name="ide",
+            provider="gitlab",
+            owner="asheeshsingh0112",
+            external_name="ide",
+        )
+
+        db.add(ide_repo)
+        db.flush()
+
+        ide_service = Service(
+            repository_id=ide_repo.id,
+            name="ide-build",
+        )
+
+        db.add(ide_service)
+        db.flush()
+
+        # Explicit service ownership.
+        #
+        # The GitLab MR changes files under the images directory,
+        # so those changes are mapped to the ide-build service.
+        db.add(
+            ServicePath(
+                service_id=ide_service.id,
+                path_prefix="images",
+            )
+        )
+
+        db.flush()
+
+        # ---------------------------------------------------------
+        # ide deployment history
+        # ---------------------------------------------------------
+
+        ide_deployment = Deployment(
+            repository_id=ide_repo.id,
+            service_id=ide_service.id,
+            commit_sha="ide-001",
+            status=DeploymentStatus.SUCCESS,
+            deployed_at=now - timedelta(days=5),
+        )
+
+        db.add(ide_deployment)
+        db.flush()
+
+        # ---------------------------------------------------------
+        # ide incidents
+        # ---------------------------------------------------------
+
+        db.add(
+            Incident(
+                service_id=ide_service.id,
+                deployment_id=ide_deployment.id,
+                title="IDE build infrastructure incident",
+                description=(
+                    "High-severity incident affecting the IDE "
+                    "container build infrastructure."
+                ),
+                severity=IncidentSeverity.HIGH,
+                started_at=now - timedelta(days=3),
+                resolved_at=(now - timedelta(days=3) + timedelta(hours=2)),
+            )
+        )
+
+        db.flush()
+
+        # =========================================================
+        # Commit
+        # =========================================================
 
         db.commit()
 
