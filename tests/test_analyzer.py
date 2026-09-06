@@ -215,3 +215,143 @@ def test_unregistered_repository_is_detected():
     ]
 
     db.close()
+
+def test_detects_dependency_change():
+    db = TestingSessionLocal()
+
+    change_request = CodeChangeRequest(
+        number=4,
+        title="Update dependency",
+        body=None,
+        state="opened",
+        base_branch="main",
+        head_branch="dependency-update",
+        head_sha="jkl012",
+        files=[
+            ChangedFile(
+                filename="package.json",
+                status="modified",
+                additions=2,
+                deletions=1,
+                changes=3,
+                patch=(
+                    '-"lodash": "4.17.20"\n'
+                    '+"lodash": "4.17.21"\n'
+                ),
+            )
+        ],
+    )
+
+    analyzer = ChangeAnalyzer(db)
+
+    result = analyzer.analyze(
+        repository="unknown/project",
+        provider="github",
+        change_request=change_request,
+    )
+
+    assert result.change_types == [
+        "dependency",
+    ]
+
+    assert result.risk_signals == [
+        "dependency_change",
+        "repository_not_registered",
+    ]
+
+    db.close()
+
+
+def test_detects_security_change():
+    db = TestingSessionLocal()
+
+    change_request = CodeChangeRequest(
+        number=5,
+        title="Update authorization",
+        body=None,
+        state="opened",
+        base_branch="main",
+        head_branch="auth-update",
+        head_sha="mno345",
+        files=[
+            ChangedFile(
+                filename="api/auth/controller.ts",
+                status="modified",
+                additions=5,
+                deletions=2,
+                changes=7,
+                patch=(
+                    "-checkPermission(user)\n"
+                    "+checkPermission(user, resource)"
+                ),
+            )
+        ],
+    )
+
+    analyzer = ChangeAnalyzer(db)
+
+    result = analyzer.analyze(
+        repository="unknown/project",
+        provider="github",
+        change_request=change_request,
+    )
+
+    assert "security" in result.change_types
+
+    assert (
+        "authentication_or_authorization_change"
+        in result.risk_signals
+    )
+
+    db.close()
+
+
+def test_detects_potential_breaking_api_change():
+    db = TestingSessionLocal()
+
+    change_request = CodeChangeRequest(
+        number=6,
+        title="Change API response",
+        body=None,
+        state="opened",
+        base_branch="main",
+        head_branch="api-update",
+        head_sha="pqr678",
+        files=[
+            ChangedFile(
+                filename="api/users/controller.ts",
+                status="modified",
+                additions=1,
+                deletions=1,
+                changes=2,
+                patch=(
+                    "-return res.status(401).json(error)\n"
+                    "+return res.status(400).json(error)"
+                ),
+            )
+        ],
+    )
+
+    analyzer = ChangeAnalyzer(db)
+
+    result = analyzer.analyze(
+        repository="unknown/project",
+        provider="github",
+        change_request=change_request,
+    )
+
+    assert result.change_types == [
+        "api",
+    ]
+
+    assert (
+        "api_change"
+        in result.risk_signals
+    )
+
+    assert (
+        "potential_breaking_api_change"
+        in result.risk_signals
+    )
+
+    db.close()

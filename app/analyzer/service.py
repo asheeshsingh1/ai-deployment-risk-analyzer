@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from app.analyzer.change_signals import ChangeSignalDetector
 from app.analyzer.repository import AnalyzerRepository
 from app.analyzer.schemas import ChangeAnalysis
 from app.scm.schemas import CodeChangeRequest
@@ -8,6 +9,7 @@ from app.scm.schemas import CodeChangeRequest
 class ChangeAnalyzer:
     def __init__(self, db: Session):
         self.repository = AnalyzerRepository(db)
+        self.signal_detector = ChangeSignalDetector()
 
     @staticmethod
     def _normalize_path(path: str) -> str:
@@ -63,72 +65,6 @@ class ChangeAnalyzer:
 
         return sorted(affected_services), True
 
-    def _detect_change_types(
-        self,
-        change_request: CodeChangeRequest,
-    ) -> tuple[list[str], list[str]]:
-        change_types: set[str] = set()
-        risk_signals: set[str] = set()
-
-        for file in change_request.files:
-            filename = file.filename.lower()
-
-            if (
-                filename.endswith(".sql")
-                or "migration" in filename
-                or "/migrations/" in filename
-            ):
-                change_types.add("database")
-                risk_signals.add("database_change")
-
-            if any(
-                keyword in filename
-                for keyword in (
-                    "api",
-                    "route",
-                    "controller",
-                )
-            ):
-                change_types.add("api")
-                risk_signals.add("api_change")
-
-            if any(
-                keyword in filename
-                for keyword in (
-                    "payment",
-                    "transaction",
-                )
-            ):
-                change_types.add("business_logic")
-                risk_signals.add(
-                    "critical_business_logic_change"
-                )
-
-            if (
-                filename.endswith(".yaml")
-                or filename.endswith(".yml")
-                or filename.endswith(".dockerfile")
-                or filename.endswith("/dockerfile")
-                or "/dockerfile." in filename
-                or filename.startswith("dockerfile.")
-            ):
-                change_types.add("infrastructure")
-                risk_signals.add(
-                    "infrastructure_change"
-                )
-
-            if (
-                filename.endswith("_test.py")
-                or filename.startswith("test_")
-                or "/tests/" in filename
-            ):
-                change_types.add("tests")
-
-        return (
-            sorted(change_types),
-            sorted(risk_signals),
-        )
-
     def analyze(
         self,
         repository: str,
@@ -147,10 +83,11 @@ class ChangeAnalyzer:
             repo_name=repo_name,
         )
 
-        change_types, risk_signals = (
-            self._detect_change_types(
-                change_request=change_request,
-            )
+        (
+            change_types,
+            risk_signals,
+        ) = self.signal_detector.detect(
+            files=change_request.files,
         )
 
         if not repository_found:

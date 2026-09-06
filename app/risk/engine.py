@@ -1,6 +1,5 @@
-from sqlalchemy.orm import Session
+from dataclasses import dataclass
 
-from app.risk.repository import RiskRepository
 from app.risk.schemas import (
     RiskAssessment,
     RiskFactor,
@@ -8,189 +7,105 @@ from app.risk.schemas import (
 )
 
 
+@dataclass(frozen=True)
+class RiskSignalRule:
+    signal: str
+    score: int
+    name: str
+    description: str
+
+
 class RiskEngine:
-    def __init__(self, db: Session):
-        self.repository = RiskRepository(db)
+    """
+    Deterministic deployment risk engine.
 
-    def assess(
-        self,
-        service_name: str,
-    ) -> RiskAssessment:
-        service = self.repository.get_service(service_name)
+    The engine combines:
+    1. Historical operational evidence.
+    2. Deterministic signals detected from the change.
 
-        if service is None:
-            raise ValueError(
-                f"Service '{service_name}' not found"
-            )
+    The engine owns the final score. AI components must never
+    calculate or modify this score.
+    """
 
-        deployments = self.repository.get_recent_deployments(
-            service.id
-        )
+    SIGNAL_RULES = (
+        RiskSignalRule(
+            signal="potential_breaking_api_change",
+            score=25,
+            name="potential_breaking_api_change",
+            description=(
+                "The change may alter an API contract "
+                "in a way that could affect consumers."
+            ),
+        ),
+        RiskSignalRule(
+            signal="authentication_or_authorization_change",
+            score=25,
+            name="authentication_or_authorization_change",
+            description=(
+                "Authentication or authorization behavior "
+                "is being modified."
+            ),
+        ),
+        RiskSignalRule(
+            signal="database_change",
+            score=20,
+            name="database_change",
+            description=(
+                "The change modifies database schema, "
+                "migrations, or persistence behavior."
+            ),
+        ),
+        RiskSignalRule(
+            signal="infrastructure_change",
+            score=15,
+            name="infrastructure_change",
+            description=(
+                "The change modifies deployment or "
+                "infrastructure configuration."
+            ),
+        ),
+        RiskSignalRule(
+            signal="dependency_change",
+            score=10,
+            name="dependency_change",
+            description=(
+                "The change modifies application dependencies "
+                "or dependency lock files."
+            ),
+        ),
+        RiskSignalRule(
+            signal="configuration_change",
+            score=10,
+            name="configuration_change",
+            description=(
+                "The change modifies application configuration."
+            ),
+        ),
+        RiskSignalRule(
+            signal="large_change",
+            score=10,
+            name="large_change",
+            description=(
+                "The change contains a large number of "
+                "modified lines."
+            ),
+        ),
+        RiskSignalRule(
+            signal="large_file_change",
+            score=5,
+            name="large_file_change",
+            description=(
+                "At least one changed file contains a "
+                "large number of modified lines."
+            ),
+        ),
+    )
 
-        incidents = self.repository.get_recent_incidents(
-            service.id
-        )
-
-        failure_rate = self.repository.get_deployment_failure_rate(
-            service.id
-        )
-
-        high_severity_incidents = (
-            self.repository.get_high_severity_incident_count(
-                service.id
-            )
-        )
-
-        factors: list[RiskFactor] = []
-
-        score = 0
-
-        # ---------------------------------------------------------
-        # Deployment failure risk
-        # ---------------------------------------------------------
-
-        if failure_rate >= 0.30:
-            factor_score = 30
-
-            factors.append(
-                RiskFactor(
-                    name="high_deployment_failure_rate",
-                    description=(
-                        f"{failure_rate:.0%} of recent deployments "
-                        "failed or were rolled back."
-                    ),
-                    score=factor_score,
-                )
-            )
-
-            score += factor_score
-
-        elif failure_rate >= 0.15:
-            factor_score = 15
-
-            factors.append(
-                RiskFactor(
-                    name="elevated_deployment_failure_rate",
-                    description=(
-                        f"{failure_rate:.0%} of recent deployments "
-                        "failed or were rolled back."
-                    ),
-                    score=factor_score,
-                )
-            )
-
-            score += factor_score
-
-        # ---------------------------------------------------------
-        # Incident risk
-        # ---------------------------------------------------------
-
-        if high_severity_incidents >= 2:
-            factor_score = 30
-
-            factors.append(
-                RiskFactor(
-                    name="recent_high_severity_incidents",
-                    description=(
-                        f"{high_severity_incidents} high-severity "
-                        "incidents occurred recently."
-                    ),
-                    score=factor_score,
-                )
-            )
-
-            score += factor_score
-
-        elif high_severity_incidents == 1:
-            factor_score = 15
-
-            factors.append(
-                RiskFactor(
-                    name="recent_high_severity_incident",
-                    description=(
-                        "A high-severity incident occurred "
-                        "recently."
-                    ),
-                    score=factor_score,
-                )
-            )
-
-            score += factor_score
-
-        # ---------------------------------------------------------
-        # Incident volume
-        # ---------------------------------------------------------
-
-        if len(incidents) >= 4:
-            factor_score = 20
-
-            factors.append(
-                RiskFactor(
-                    name="high_incident_volume",
-                    description=(
-                        f"{len(incidents)} incidents occurred "
-                        "in the last 30 days."
-                    ),
-                    score=factor_score,
-                )
-            )
-
-            score += factor_score
-
-        elif len(incidents) >= 2:
-            factor_score = 10
-
-            factors.append(
-                RiskFactor(
-                    name="elevated_incident_volume",
-                    description=(
-                        f"{len(incidents)} incidents occurred "
-                        "in the last 30 days."
-                    ),
-                    score=factor_score,
-                )
-            )
-
-            score += factor_score
-
-        # ---------------------------------------------------------
-        # No historical data
-        # ---------------------------------------------------------
-
-        if not deployments:
-            factors.append(
-                RiskFactor(
-                    name="insufficient_deployment_history",
-                    description=(
-                        "No recent deployment history is available "
-                        "for this service."
-                    ),
-                    score=10,
-                )
-            )
-
-            score += 10
-
-        # ---------------------------------------------------------
-        # Normalize score
-        # ---------------------------------------------------------
-
-        score = min(score, 100)
-
-        level = self._get_risk_level(score)
-
-        recommendation = self._get_recommendation(level)
-
-        return RiskAssessment(
-            service=service.name,
-            score=score,
-            level=level,
-            factors=factors,
-            recommendation=recommendation,
-        )
+    def __init__(self, repository):
+        self.repository = repository
 
     @staticmethod
-    def _get_risk_level(score: int) -> RiskLevel:
+    def _risk_level(score: int) -> RiskLevel:
         if score >= 75:
             return RiskLevel.CRITICAL
 
@@ -203,26 +118,215 @@ class RiskEngine:
         return RiskLevel.LOW
 
     @staticmethod
-    def _get_recommendation(
+    def _recommendation(
         level: RiskLevel,
     ) -> str:
-        recommendations = {
-            RiskLevel.LOW: (
-                "Deployment can proceed using the standard "
-                "deployment process."
-            ),
-            RiskLevel.MEDIUM: (
-                "Consider additional integration testing and "
-                "enhanced monitoring during deployment."
-            ),
-            RiskLevel.HIGH: (
-                "Use a staged or canary deployment and closely "
-                "monitor production metrics."
-            ),
-            RiskLevel.CRITICAL: (
-                "Deployment should require additional review, "
-                "staging validation, and a controlled canary rollout."
-            ),
-        }
+        if level == RiskLevel.CRITICAL:
+            return (
+                "Block the deployment pending manual review, "
+                "additional validation, and a controlled rollout."
+            )
 
-        return recommendations[level]
+        if level == RiskLevel.HIGH:
+            return (
+                "Use a staged or canary deployment and "
+                "closely monitor production metrics."
+            )
+
+        if level == RiskLevel.MEDIUM:
+            return (
+                "Use additional validation and monitor "
+                "the deployment closely."
+            )
+
+        return (
+            "Standard deployment is reasonable with "
+            "normal production monitoring."
+        )
+
+    def _historical_factors(
+        self,
+        service_id: int,
+    ) -> list[RiskFactor]:
+        deployments = (
+            self.repository.get_recent_deployments(
+                service_id=service_id,
+            )
+        )
+
+        incidents = (
+            self.repository.get_recent_incidents(
+                service_id=service_id,
+            )
+        )
+
+        factors: list[RiskFactor] = []
+
+        if not deployments:
+            factors.append(
+                RiskFactor(
+                    name="insufficient_deployment_history",
+                    description=(
+                        "No recent deployment history is "
+                        "available for this service."
+                    ),
+                    score=10,
+                )
+            )
+
+        else:
+            failed_or_rollback = sum(
+                deployment.status
+                in {
+                    "failed",
+                    "rolled_back",
+                }
+                for deployment in deployments
+            )
+
+            failure_rate = (
+                failed_or_rollback
+                / len(deployments)
+            )
+
+            if failure_rate >= 0.30:
+                factors.append(
+                    RiskFactor(
+                        name="high_deployment_failure_rate",
+                        description=(
+                            f"{failure_rate:.0%} of recent "
+                            "deployments failed or were rolled back."
+                        ),
+                        score=30,
+                    )
+                )
+
+            elif failure_rate >= 0.15:
+                factors.append(
+                    RiskFactor(
+                        name="elevated_deployment_failure_rate",
+                        description=(
+                            f"{failure_rate:.0%} of recent "
+                            "deployments failed or were rolled back."
+                        ),
+                        score=15,
+                    )
+                )
+
+        high_severity_incidents = sum(
+            incident.severity
+            in {
+                "high",
+                "critical",
+            }
+            for incident in incidents
+        )
+
+        if high_severity_incidents >= 2:
+            factors.append(
+                RiskFactor(
+                    name="recent_high_severity_incidents",
+                    description=(
+                        f"{high_severity_incidents} high or "
+                        "critical severity incidents occurred recently."
+                    ),
+                    score=30,
+                )
+            )
+
+        elif high_severity_incidents == 1:
+            factors.append(
+                RiskFactor(
+                    name="recent_high_severity_incident",
+                    description=(
+                        "A high-severity incident occurred recently."
+                    ),
+                    score=15,
+                )
+            )
+
+        incident_count = len(incidents)
+
+        if incident_count >= 4:
+            factors.append(
+                RiskFactor(
+                    name="high_incident_volume",
+                    description=(
+                        f"{incident_count} incidents occurred "
+                        "in the last 30 days."
+                    ),
+                    score=20,
+                )
+            )
+
+        elif incident_count >= 2:
+            factors.append(
+                RiskFactor(
+                    name="elevated_incident_volume",
+                    description=(
+                        f"{incident_count} incidents occurred "
+                        "in the last 30 days."
+                    ),
+                    score=10,
+                )
+            )
+
+        return factors
+
+    def _change_signal_factors(
+        self,
+        risk_signals: list[str],
+    ) -> list[RiskFactor]:
+        factors: list[RiskFactor] = []
+
+        signal_set = set(risk_signals)
+
+        for rule in self.SIGNAL_RULES:
+            if rule.signal not in signal_set:
+                continue
+
+            factors.append(
+                RiskFactor(
+                    name=rule.name,
+                    description=rule.description,
+                    score=rule.score,
+                )
+            )
+
+        return factors
+
+    def assess(
+        self,
+        service_name: str,
+        service_id: int,
+        risk_signals: list[str],
+    ) -> RiskAssessment:
+        factors = self._historical_factors(
+            service_id=service_id,
+        )
+
+        factors.extend(
+            self._change_signal_factors(
+                risk_signals=risk_signals,
+            )
+        )
+
+        score = min(
+            100,
+            sum(
+                factor.score
+                for factor in factors
+            ),
+        )
+
+        level = self._risk_level(score)
+
+        return RiskAssessment(
+            service=service_name,
+            score=score,
+            level=level,
+            factors=factors,
+            recommendation=self._recommendation(
+                level
+            ),
+        )

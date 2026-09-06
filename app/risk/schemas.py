@@ -2,6 +2,8 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from app.scm.schemas import ChangedFile
+
 
 class RiskLevel(str, Enum):
     LOW = "low"
@@ -24,15 +26,6 @@ class RiskAssessment(BaseModel):
     recommendation: str
 
 
-class ChangedFile(BaseModel):
-    filename: str
-    status: str
-    additions: int
-    deletions: int
-    changes: int
-    patch: str | None = None
-
-
 class ChangeRequestRiskAssessment(BaseModel):
     repository: str
     change_request_number: int
@@ -51,10 +44,7 @@ class ChangeRequestRiskAssessment(BaseModel):
 
     service_assessments: list[RiskAssessment]
 
-    overall_score: int = Field(
-        ge=0,
-        le=100,
-    )
+    overall_score: int = Field(ge=0, le=100)
 
     overall_level: RiskLevel
 
