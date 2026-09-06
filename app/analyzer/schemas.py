@@ -1,22 +1,15 @@
 from pydantic import BaseModel, Field
 
 
-class ChangedFile(BaseModel):
-    filename: str
-    status: str
-    additions: int
-    deletions: int
-
-
 class ChangeAnalysis(BaseModel):
     repository: str
-    pull_request_number: int
+    change_request_number: int
 
     files_changed: int
     lines_added: int
     lines_deleted: int
 
-    changed_files: list[ChangedFile] = Field(
+    changed_files: list[dict] = Field(
         default_factory=list
     )
 

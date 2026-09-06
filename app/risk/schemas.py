@@ -24,10 +24,19 @@ class RiskAssessment(BaseModel):
     recommendation: str
 
 
-class PRRiskAssessment(BaseModel):
+class ChangedFile(BaseModel):
+    filename: str
+    status: str
+    additions: int
+    deletions: int
+    changes: int
+    patch: str | None = None
+
+
+class ChangeRequestRiskAssessment(BaseModel):
     repository: str
-    pull_request_number: int
-    pull_request_title: str
+    change_request_number: int
+    change_request_title: str
 
     affected_services: list[str]
 
@@ -38,8 +47,18 @@ class PRRiskAssessment(BaseModel):
     lines_added: int
     lines_deleted: int
 
+    changed_files: list[ChangedFile]
+
     service_assessments: list[RiskAssessment]
 
-    overall_score: int = Field(ge=0, le=100)
+    overall_score: int = Field(
+        ge=0,
+        le=100,
+    )
+
     overall_level: RiskLevel
+
     recommendation: str
+
+    ai_explanation: str
+    ai_recommendation: str

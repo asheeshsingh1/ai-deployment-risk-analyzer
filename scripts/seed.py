@@ -27,9 +27,9 @@ def seed() -> None:
         db.execute(delete(Service))
         db.execute(delete(Repository))
 
-        # ---------------------------------------------------------
+        # =========================================================
         # payments-platform
-        # ---------------------------------------------------------
+        # =========================================================
 
         payments_repo = Repository(
             name="payments-platform",
@@ -84,7 +84,7 @@ def seed() -> None:
 
         db.flush()
 
-        deployments = [
+        payment_deployments = [
             Deployment(
                 repository_id=payments_repo.id,
                 service_id=payment_service.id,
@@ -150,53 +150,59 @@ def seed() -> None:
             ),
         ]
 
-        db.add_all(deployments)
+        db.add_all(payment_deployments)
         db.flush()
 
-        incidents = [
-            Incident(
-                service_id=payment_service.id,
-                deployment_id=deployments[1].id,
-                title="Payment API errors",
-                description="Elevated payment API failures.",
-                severity=IncidentSeverity.HIGH,
-                started_at=now - timedelta(days=20),
-                resolved_at=(
-                    now - timedelta(days=20)
-                    + timedelta(hours=2)
+        db.add_all(
+            [
+                Incident(
+                    service_id=payment_service.id,
+                    deployment_id=payment_deployments[1].id,
+                    title="Payment API errors",
+                    description=(
+                        "Elevated payment API failures."
+                    ),
+                    severity=IncidentSeverity.HIGH,
+                    started_at=now - timedelta(days=20),
+                    resolved_at=(
+                        now - timedelta(days=20)
+                        + timedelta(hours=2)
+                    ),
                 ),
-            ),
-            Incident(
-                service_id=payment_service.id,
-                deployment_id=deployments[3].id,
-                title="Payment rollback",
-                description="Deployment required rollback.",
-                severity=IncidentSeverity.MEDIUM,
-                started_at=now - timedelta(days=15),
-                resolved_at=(
-                    now - timedelta(days=15)
-                    + timedelta(hours=4)
+                Incident(
+                    service_id=payment_service.id,
+                    deployment_id=payment_deployments[3].id,
+                    title="Payment rollback",
+                    description=(
+                        "Deployment required rollback."
+                    ),
+                    severity=IncidentSeverity.MEDIUM,
+                    started_at=now - timedelta(days=15),
+                    resolved_at=(
+                        now - timedelta(days=15)
+                        + timedelta(hours=4)
+                    ),
                 ),
-            ),
-            Incident(
-                service_id=billing_service.id,
-                deployment_id=deployments[6].id,
-                title="Billing latency",
-                description="Temporary billing latency increase.",
-                severity=IncidentSeverity.LOW,
-                started_at=now - timedelta(days=12),
-                resolved_at=(
-                    now - timedelta(days=12)
-                    + timedelta(hours=1)
+                Incident(
+                    service_id=billing_service.id,
+                    deployment_id=payment_deployments[6].id,
+                    title="Billing latency",
+                    description=(
+                        "Temporary billing latency increase."
+                    ),
+                    severity=IncidentSeverity.LOW,
+                    started_at=now - timedelta(days=12),
+                    resolved_at=(
+                        now - timedelta(days=12)
+                        + timedelta(hours=1)
+                    ),
                 ),
-            ),
-        ]
+            ]
+        )
 
-        db.add_all(incidents)
-
-        # ---------------------------------------------------------
+        # =========================================================
         # tasker
-        # ---------------------------------------------------------
+        # =========================================================
 
         tasker_repo = Repository(
             name="tasker",
@@ -215,7 +221,7 @@ def seed() -> None:
         db.add(tasker_service)
         db.flush()
 
-        # Explicit ownership mapping for the repository.
+        # Explicit service ownership.
         db.add_all(
             [
                 ServicePath(
@@ -225,6 +231,99 @@ def seed() -> None:
                 ServicePath(
                     service_id=tasker_service.id,
                     path_prefix="app",
+                ),
+            ]
+        )
+
+        db.flush()
+
+        # ---------------------------------------------------------
+        # tasker deployment history
+        # ---------------------------------------------------------
+
+        tasker_deployments = [
+            Deployment(
+                repository_id=tasker_repo.id,
+                service_id=tasker_service.id,
+                commit_sha="tasker-001",
+                status=DeploymentStatus.SUCCESS,
+                deployed_at=now - timedelta(days=30),
+            ),
+            Deployment(
+                repository_id=tasker_repo.id,
+                service_id=tasker_service.id,
+                commit_sha="tasker-002",
+                status=DeploymentStatus.SUCCESS,
+                deployed_at=now - timedelta(days=25),
+            ),
+            Deployment(
+                repository_id=tasker_repo.id,
+                service_id=tasker_service.id,
+                commit_sha="tasker-003",
+                status=DeploymentStatus.FAILED,
+                deployed_at=now - timedelta(days=20),
+            ),
+            Deployment(
+                repository_id=tasker_repo.id,
+                service_id=tasker_service.id,
+                commit_sha="tasker-004",
+                status=DeploymentStatus.ROLLED_BACK,
+                deployed_at=now - timedelta(days=15),
+            ),
+            Deployment(
+                repository_id=tasker_repo.id,
+                service_id=tasker_service.id,
+                commit_sha="tasker-005",
+                status=DeploymentStatus.SUCCESS,
+                deployed_at=now - timedelta(days=10),
+            ),
+            Deployment(
+                repository_id=tasker_repo.id,
+                service_id=tasker_service.id,
+                commit_sha="tasker-006",
+                status=DeploymentStatus.SUCCESS,
+                deployed_at=now - timedelta(days=5),
+            ),
+        ]
+
+        db.add_all(tasker_deployments)
+        db.flush()
+
+        # ---------------------------------------------------------
+        # tasker incidents
+        # ---------------------------------------------------------
+
+        db.add_all(
+            [
+                Incident(
+                    service_id=tasker_service.id,
+                    deployment_id=tasker_deployments[2].id,
+                    title="Recurring task failures",
+                    description=(
+                        "Scheduled recurring tasks failed "
+                        "after deployment."
+                    ),
+                    severity=IncidentSeverity.HIGH,
+                    started_at=now - timedelta(days=20),
+                    resolved_at=(
+                        now - timedelta(days=20)
+                        + timedelta(hours=3)
+                    ),
+                ),
+                Incident(
+                    service_id=tasker_service.id,
+                    deployment_id=tasker_deployments[3].id,
+                    title="Worker rollback",
+                    description=(
+                        "Deployment was rolled back after "
+                        "elevated task processing errors."
+                    ),
+                    severity=IncidentSeverity.MEDIUM,
+                    started_at=now - timedelta(days=15),
+                    resolved_at=(
+                        now - timedelta(days=15)
+                        + timedelta(hours=2)
+                    ),
                 ),
             ]
         )

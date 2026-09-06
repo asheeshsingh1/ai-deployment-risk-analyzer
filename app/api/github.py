@@ -5,8 +5,8 @@ from app.analyzer.schemas import ChangeAnalysis
 from app.analyzer.service import ChangeAnalyzer
 from app.config import get_settings
 from app.db.database import get_db
-from app.github.client import GitHubClient
-from app.risk.schemas import PRRiskAssessment
+from app.scm.github.client import GitHubClient
+from app.risk.schemas import AIRiskAssessment
 from app.risk.service import PRRiskService
 
 
@@ -16,10 +16,7 @@ router = APIRouter(
 )
 
 
-def _get_pull_request(
-    owner: str,
-    repo: str,
-) -> GitHubClient:
+def _get_github_client() -> GitHubClient:
     settings = get_settings()
 
     return GitHubClient(
@@ -37,10 +34,7 @@ def analyze_pull_request(
     pull_number: int,
     db: Session = Depends(get_db),
 ) -> ChangeAnalysis:
-    github_client = _get_pull_request(
-        owner=owner,
-        repo=repo,
-    )
+    github_client = _get_github_client()
 
     pull_request = github_client.get_pull_request(
         owner=owner,
@@ -58,18 +52,15 @@ def analyze_pull_request(
 
 @router.get(
     "/{owner}/{repo}/pulls/{pull_number}/risk",
-    response_model=PRRiskAssessment,
+    response_model=AIRiskAssessment,
 )
 def assess_pull_request_risk(
     owner: str,
     repo: str,
     pull_number: int,
     db: Session = Depends(get_db),
-) -> PRRiskAssessment:
-    github_client = _get_pull_request(
-        owner=owner,
-        repo=repo,
-    )
+) -> AIRiskAssessment:
+    github_client = _get_github_client()
 
     pull_request = github_client.get_pull_request(
         owner=owner,
@@ -88,5 +79,5 @@ def assess_pull_request_risk(
 
     return risk_service.assess(
         change_analysis=change_analysis,
-        pull_request_title=pull_request.title,
+        pull_request=pull_request,
     )

@@ -1,24 +1,28 @@
 from sqlalchemy.orm import Session
 
 from app.analyzer.schemas import ChangeAnalysis
+from app.graph.workflow import build_risk_graph
 from app.risk.engine import RiskEngine
 from app.risk.schemas import (
-    PRRiskAssessment,
+    ChangeRequestRiskAssessment,
+    ChangedFile,
     RiskAssessment,
     RiskLevel,
 )
+from app.scm.schemas import CodeChangeRequest
 
 
 class PRRiskService:
     def __init__(self, db: Session):
         self.db = db
         self.risk_engine = RiskEngine(db)
+        self.graph = build_risk_graph()
 
     def assess(
         self,
         change_analysis: ChangeAnalysis,
-        pull_request_title: str,
-    ) -> PRRiskAssessment:
+        change_request: CodeChangeRequest,
+    ) -> ChangeRequestRiskAssessment:
         service_assessments: list[RiskAssessment] = []
 
         for service_name in change_analysis.affected_services:
@@ -53,24 +57,60 @@ class PRRiskService:
             change_analysis=change_analysis,
         )
 
-        return PRRiskAssessment(
-            repository=change_analysis.repository,
-            pull_request_number=(
-                change_analysis.pull_request_number
-            ),
-            pull_request_title=pull_request_title,
-            affected_services=(
-                change_analysis.affected_services
-            ),
-            change_types=change_analysis.change_types,
-            risk_signals=change_analysis.risk_signals,
-            files_changed=change_analysis.files_changed,
-            lines_added=change_analysis.lines_added,
-            lines_deleted=change_analysis.lines_deleted,
-            service_assessments=service_assessments,
-            overall_score=overall_score,
-            overall_level=overall_level,
-            recommendation=recommendation,
+        deterministic_assessment = (
+            ChangeRequestRiskAssessment(
+                repository=change_analysis.repository,
+                change_request_number=(
+                    change_analysis.change_request_number
+                ),
+                change_request_title=change_request.title,
+                affected_services=(
+                    change_analysis.affected_services
+                ),
+                change_types=change_analysis.change_types,
+                risk_signals=change_analysis.risk_signals,
+                files_changed=change_analysis.files_changed,
+                lines_added=change_analysis.lines_added,
+                lines_deleted=change_analysis.lines_deleted,
+                changed_files=[
+                    ChangedFile(
+                        filename=file.filename,
+                        status=file.status,
+                        additions=file.additions,
+                        deletions=file.deletions,
+                        changes=file.changes,
+                        patch=file.patch,
+                    )
+                    for file in change_request.files
+                ],
+                service_assessments=service_assessments,
+                overall_score=overall_score,
+                overall_level=overall_level,
+                recommendation=recommendation,
+                ai_explanation="",
+                ai_recommendation="",
+            )
+        )
+
+        graph_result = self.graph.invoke(
+            {
+                "risk_assessment": (
+                    deterministic_assessment
+                )
+            }
+        )
+
+        return deterministic_assessment.model_copy(
+            update={
+                "ai_explanation": graph_result.get(
+                    "explanation",
+                    "",
+                ),
+                "ai_recommendation": graph_result.get(
+                    "recommendation",
+                    "",
+                ),
+            }
         )
 
     @staticmethod

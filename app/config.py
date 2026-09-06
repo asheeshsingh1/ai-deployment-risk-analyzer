@@ -10,7 +10,11 @@ class Settings(BaseSettings):
 
     database_url: str
 
-    github_token: str
+    github_token: str = ""
+    gitlab_token: str = ""
+
+    gemini_api_key: str
+    gemini_model: str = "gemini-3.6-flash"
 
     model_config = SettingsConfigDict(
         env_file=".env",

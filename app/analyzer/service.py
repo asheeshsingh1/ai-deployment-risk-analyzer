@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.analyzer.repository import AnalyzerRepository
 from app.analyzer.schemas import ChangeAnalysis
-from app.github.schemas import PullRequest
+from app.scm.schemas import CodeChangeRequest
 
 
 class ChangeAnalyzer:
@@ -15,7 +15,7 @@ class ChangeAnalyzer:
 
     def _find_affected_services(
         self,
-        pull_request: PullRequest,
+        change_request: CodeChangeRequest,
         owner: str,
         repo_name: str,
     ) -> tuple[list[str], bool]:
@@ -36,7 +36,7 @@ class ChangeAnalyzer:
 
         affected_services: set[str] = set()
 
-        for file in pull_request.files:
+        for file in change_request.files:
             file_path = self._normalize_path(
                 file.filename
             )
@@ -63,12 +63,12 @@ class ChangeAnalyzer:
 
     def _detect_change_types(
         self,
-        pull_request: PullRequest,
+        change_request: CodeChangeRequest,
     ) -> tuple[list[str], list[str]]:
         change_types: set[str] = set()
         risk_signals: set[str] = set()
 
-        for file in pull_request.files:
+        for file in change_request.files:
             filename = file.filename.lower()
 
             if (
@@ -127,7 +127,7 @@ class ChangeAnalyzer:
     def analyze(
         self,
         repository: str,
-        pull_request: PullRequest,
+        change_request: CodeChangeRequest,
     ) -> ChangeAnalysis:
         owner, repo_name = repository.split("/", 1)
 
@@ -135,14 +135,14 @@ class ChangeAnalyzer:
             affected_services,
             repository_found,
         ) = self._find_affected_services(
-            pull_request=pull_request,
+            change_request=change_request,
             owner=owner,
             repo_name=repo_name,
         )
 
         change_types, risk_signals = (
             self._detect_change_types(
-                pull_request=pull_request,
+                change_request=change_request,
             )
         )
 
@@ -150,6 +150,7 @@ class ChangeAnalyzer:
             risk_signals.append(
                 "repository_not_registered"
             )
+
         elif not affected_services:
             risk_signals.append(
                 "affected_service_not_identified"
@@ -159,24 +160,19 @@ class ChangeAnalyzer:
 
         return ChangeAnalysis(
             repository=repository,
-            pull_request_number=pull_request.number,
-            files_changed=len(pull_request.files),
+            change_request_number=change_request.number,
+            files_changed=len(change_request.files),
             lines_added=sum(
                 file.additions
-                for file in pull_request.files
+                for file in change_request.files
             ),
             lines_deleted=sum(
                 file.deletions
-                for file in pull_request.files
+                for file in change_request.files
             ),
             changed_files=[
-                {
-                    "filename": file.filename,
-                    "status": file.status,
-                    "additions": file.additions,
-                    "deletions": file.deletions,
-                }
-                for file in pull_request.files
+                file.model_dump()
+                for file in change_request.files
             ],
             affected_services=affected_services,
             change_types=change_types,

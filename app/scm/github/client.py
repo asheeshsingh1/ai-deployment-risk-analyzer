@@ -2,7 +2,7 @@ from typing import Any
 
 import httpx
 
-from app.github.schemas import PullRequest, PullRequestFile
+from app.scm.github.schemas import PullRequest, PullRequestFile
 
 
 class GitHubClient:

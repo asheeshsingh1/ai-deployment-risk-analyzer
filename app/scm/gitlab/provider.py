@@ -1,0 +1,148 @@
+from typing import Any
+
+import httpx
+
+from app.scm.base import SCMProvider
+from app.scm.schemas import (
+    ChangedFile,
+    CodeChangeRequest,
+)
+
+
+class GitLabProvider(SCMProvider):
+    BASE_URL = "https://gitlab.com/api/v4"
+
+    def __init__(self, token: str):
+        self.token = token
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "PRIVATE-TOKEN": self.token,
+        }
+
+    @staticmethod
+    def _project_id(
+        owner: str,
+        repository: str,
+    ) -> str:
+        return f"{owner}%2F{repository}"
+
+    def get_change_request(
+        self,
+        owner: str,
+        repository: str,
+        change_number: int,
+    ) -> CodeChangeRequest:
+        project_id = self._project_id(
+            owner,
+            repository,
+        )
+
+        url = (
+            f"{self.BASE_URL}/projects/"
+            f"{project_id}/merge_requests/"
+            f"{change_number}"
+        )
+
+        response = httpx.get(
+            url,
+            headers=self._headers(),
+            timeout=10.0,
+        )
+
+        response.raise_for_status()
+
+        data: dict[str, Any] = response.json()
+
+        files = self._get_files(
+            project_id=project_id,
+            change_number=change_number,
+        )
+
+        return CodeChangeRequest(
+            number=data["iid"],
+            title=data["title"],
+            body=data.get("description"),
+            state=data["state"],
+            base_branch=data["target_branch"],
+            head_branch=data["source_branch"],
+            head_sha=data["sha"],
+            files=files,
+        )
+
+    def _get_files(
+        self,
+        project_id: str,
+        change_number: int,
+    ) -> list[ChangedFile]:
+        url = (
+            f"{self.BASE_URL}/projects/"
+            f"{project_id}/merge_requests/"
+            f"{change_number}/changes"
+        )
+
+        response = httpx.get(
+            url,
+            headers=self._headers(),
+            timeout=10.0,
+        )
+
+        response.raise_for_status()
+
+        data: dict[str, Any] = response.json()
+
+        changes = data.get("changes", [])
+
+        return [
+            ChangedFile(
+                filename=change["new_path"],
+                status=self._get_file_status(change),
+                additions=0,
+                deletions=0,
+                changes=0,
+                patch=change.get("diff"),
+            )
+            for change in changes
+        ]
+
+    @staticmethod
+    def _get_file_status(
+        change: dict[str, Any],
+    ) -> str:
+        if change.get("new_file"):
+            return "added"
+
+        if change.get("deleted_file"):
+            return "deleted"
+
+        if change.get("renamed_file"):
+            return "renamed"
+
+        return "modified"
+
+    def add_change_request_comment(
+        self,
+        owner: str,
+        repository: str,
+        change_number: int,
+        body: str,
+    ) -> None:
+        project_id = self._project_id(
+            owner,
+            repository,
+        )
+
+        url = (
+            f"{self.BASE_URL}/projects/"
+            f"{project_id}/merge_requests/"
+            f"{change_number}/notes"
+        )
+
+        response = httpx.post(
+            url,
+            headers=self._headers(),
+            data={"body": body},
+            timeout=10.0,
+        )
+
+        response.raise_for_status()
