@@ -1,13 +1,33 @@
 import { useState } from "react";
 
+import AIInsights from "./components/AIInsights";
 import AnalysisForm from "./components/AnalysisForm";
+import ChangedFiles from "./components/ChangedFiles";
 import Header from "./components/Header";
+import HistoricalIntelligence from "./components/HistoricalIntelligence";
 import PageContainer from "./components/PageContainer";
+import RiskFactors from "./components/RiskFactors";
+import RiskSummary from "./components/RiskSummary";
 import type { AnalysisResponse } from "./types/analysis";
 
 function App() {
     const [analysis, setAnalysis] =
         useState<AnalysisResponse | null>(null);
+
+    function handleAnalysisComplete(
+        result: AnalysisResponse,
+    ) {
+        setAnalysis(result);
+
+        window.setTimeout(() => {
+        document
+            .getElementById("analysis-results")
+            ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+            });
+        }, 50);
+    }
 
     return (
         <div className="app">
@@ -50,85 +70,163 @@ function App() {
             </div>
 
             <AnalysisForm
-                onAnalysisComplete={setAnalysis}
+                onAnalysisComplete={handleAnalysisComplete}
             />
-
-            {analysis && (
-                <div className="analysis-success">
-                <div className="success-icon">✓</div>
-
-                <div>
-                    <strong>
-                    Analysis completed
-                    </strong>
-
-                    <p>
-                    {analysis.repository} ·{" "}
-                    {analysis.change_request_title}
-                    </p>
-                </div>
-                </div>
-            )}
             </section>
 
+            {analysis ? (
+            <section
+                id="analysis-results"
+                className="results-section"
+            >
+                <div className="results-header">
+                <div>
+                    <p className="section-label">
+                    Analysis Results
+                    </p>
+
+                    <h2>Deployment risk assessment</h2>
+
+                    <p>
+                    Deterministic risk scoring enriched with
+                    historical intelligence and AI analysis.
+                    </p>
+                </div>
+
+                <div className="results-change-types">
+                    {analysis.change_types.map((type) => (
+                    <span key={type}>
+                        {type.replaceAll("_", " ")}
+                    </span>
+                    ))}
+                </div>
+                </div>
+
+                <RiskSummary analysis={analysis} />
+
+                <div className="results-grid">
+                {analysis.service_assessments.length > 0 ? (
+                    <RiskFactors
+                    factors={analysis.service_assessments[0].factors}
+                    />
+                ) : (
+                    <RiskFactors factors={[]} />
+                )}
+
+                <section className="dashboard-card">
+                    <p className="card-label">Change Summary</p>
+
+                    <h3>Change surface</h3>
+
+                    <div className="summary-metrics">
+                    <div>
+                        <strong>{analysis.files_changed}</strong>
+                        <span>Files changed</span>
+                    </div>
+
+                    <div>
+                        <strong>
+                        +{analysis.lines_added}
+                        </strong>
+                        <span>Lines added</span>
+                    </div>
+
+                    <div>
+                        <strong>
+                        -{analysis.lines_deleted}
+                        </strong>
+                        <span>Lines deleted</span>
+                    </div>
+                    </div>
+
+                    <div className="signal-list">
+                    {analysis.risk_signals.map((signal) => (
+                        <span key={signal}>
+                        {signal.replaceAll("_", " ")}
+                        </span>
+                    ))}
+                    </div>
+                </section>
+                </div>
+
+                <ChangedFiles files={analysis.changed_files} />
+
+                {analysis.service_assessments.map(
+                (assessment) => (
+                    <HistoricalIntelligence
+                    key={assessment.service}
+                    intelligence={
+                        assessment.historical_intelligence
+                    }
+                    />
+                ),
+                )}
+
+                <AIInsights
+                explanation={analysis.ai_explanation}
+                recommendation={analysis.ai_recommendation}
+                />
+            </section>
+            ) : (
             <section className="dashboard-grid">
-            <article className="dashboard-card">
+                <article className="dashboard-card">
                 <p className="card-label">Risk Engine</p>
 
                 <h3>Deterministic scoring</h3>
 
                 <p>
-                Risk scores are calculated from explicit
-                engineering signals rather than being
-                determined by the language model.
+                    Risk scores are calculated from explicit
+                    engineering signals rather than being
+                    determined by the language model.
                 </p>
 
                 <div className="metric-row">
-                <div>
+                    <div>
                     <strong>100</strong>
                     <span>Maximum score</span>
-                </div>
+                    </div>
 
-                <div>
+                    <div>
                     <strong>4</strong>
                     <span>Risk levels</span>
+                    </div>
                 </div>
-                </div>
-            </article>
+                </article>
 
-            <article className="dashboard-card">
+                <article className="dashboard-card">
                 <p className="card-label">
-                Historical Intelligence
+                    Historical Intelligence
                 </p>
 
                 <h3>Learn from deployment history</h3>
 
                 <p>
-                Deployment outcomes and incidents provide
-                additional context for current change risk.
+                    Deployment outcomes and incidents provide
+                    additional context for current change risk.
                 </p>
 
                 <div className="feature-list">
-                <span>Deployments</span>
-                <span>Rollbacks</span>
-                <span>Incidents</span>
+                    <span>Deployments</span>
+                    <span>Rollbacks</span>
+                    <span>Incidents</span>
                 </div>
-            </article>
+                </article>
 
-            <article className="dashboard-card wide-card">
+                <article className="dashboard-card wide-card">
                 <p className="card-label">
-                AI Assistance
+                    AI Assistance
                 </p>
 
                 <h3>Context-aware recommendations</h3>
 
                 <p>
-                Gemini explains the evidence behind the
-                deterministic risk assessment and provides
-                actionable deployment recommendations.
+                    Gemini explains the evidence behind the
+                    deterministic risk assessment and provides
+                    actionable deployment recommendations.
                 </p>
-            </article>
+                </article>
             </section>
+            )}
         </PageContainer>
         </div>
     );
