@@ -1,35 +1,25 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
+.git
+.gitignore
 
-# Virtual environment
-.venv/
-venv/
-env/
-
-# Environment
 .env
+.env.*
+!.env.example
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
 
-# IDE
-.idea/
-.vscode/
+.venv
+venv
+env
 
-# OS
+.idea
+.vscode
+
 .DS_Store
 
-# Build
-build/
-dist/
-*.egg-info/
-
-# Alembic
-*.db
-
-# Logs
 *.log
+
+tests
