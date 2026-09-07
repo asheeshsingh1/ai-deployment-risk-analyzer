@@ -5,7 +5,7 @@ the risk of releasing a change to production.
 
 ## Current Architecture
 
-GitHub PR
+GitHub/Gitlab PR
     |
     v
 FastAPI
@@ -31,22 +31,7 @@ LangGraph
 LLM
     |
     v
-GitHub PR Comment
-
-## Phase 1
-
-Phase 1 provides the application foundation:
-
-- FastAPI
-- PostgreSQL
-- SQLAlchemy 2
-- Alembic
-- Docker Compose
-- Repository model
-- Service model
-- Deployment model
-- Incident model
-- Health endpoint
+AI Analysis
 
 ## Setup
 
