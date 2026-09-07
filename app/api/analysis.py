@@ -13,6 +13,10 @@ from app.scm.exceptions import (
     SCMRateLimitError,
 )
 from app.scm.factory import get_scm_provider
+from app.scm.url_parser import (
+    ChangeRequestUrlError,
+    ChangeRequestUrlParser,
+)
 
 router = APIRouter(
     prefix="/api/v1/analysis",
@@ -21,21 +25,9 @@ router = APIRouter(
 
 
 class AnalysisRequest(BaseModel):
-    provider: str = Field(
+    change_request_url: str = Field(
         min_length=1,
-        description="SCM provider, e.g. github or gitlab.",
-    )
-    owner: str = Field(
-        min_length=1,
-        description="Repository owner or namespace.",
-    )
-    repository: str = Field(
-        min_length=1,
-        description="Repository name.",
-    )
-    change_number: int = Field(
-        gt=0,
-        description="PR number or MR IID.",
+        description=("GitHub Pull Request or GitLab Merge Request URL."),
     )
 
 
@@ -90,35 +82,50 @@ def analyze_change(
     request: AnalysisRequest,
     db: Session = Depends(get_db),
 ) -> ChangeRequestRiskAssessment:
-    provider = request.provider.lower().strip()
-
     try:
-        scm_provider = get_scm_provider(provider)
+        parsed_request = ChangeRequestUrlParser.parse(
+            request.change_request_url,
+        )
+
+        scm_provider = get_scm_provider(
+            parsed_request.provider,
+        )
 
         change_request = scm_provider.get_change_request(
-            owner=request.owner.strip(),
-            repository=request.repository.strip(),
-            change_number=request.change_number,
+            owner=parsed_request.owner,
+            repository=parsed_request.repository,
+            change_number=parsed_request.change_number,
         )
 
         analyzer = ChangeAnalyzer(db)
 
         change_analysis = analyzer.analyze(
-            repository=(f"{request.owner.strip()}/" f"{request.repository.strip()}"),
-            provider=provider,
+            repository=(f"{parsed_request.owner}/" f"{parsed_request.repository}"),
+            provider=parsed_request.provider,
             change_request=change_request,
         )
 
         risk_service = ChangeRequestRiskService(db)
 
-        assessment = risk_service.assess(
+        result = risk_service.assess(
             change_analysis=change_analysis,
             change_request=change_request,
         )
 
         db.commit()
 
-        return assessment
+        return result
+
+    except ChangeRequestUrlError as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "invalid_change_request_url",
+                "message": str(exc),
+            },
+        ) from exc
 
     except SCMProviderError as exc:
         db.rollback()

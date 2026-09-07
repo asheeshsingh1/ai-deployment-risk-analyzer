@@ -1,9 +1,9 @@
 import { useState } from "react";
+
 import { analyzeChange, ApiError } from "../api/client";
 import type {
     AnalysisRequest,
     AnalysisResponse,
-    SCMProvider,
     } from "../types/analysis";
 
     interface AnalysisFormProps {
@@ -13,50 +13,45 @@ import type {
     function AnalysisForm({
     onAnalysisComplete,
     }: AnalysisFormProps) {
-    const [provider, setProvider] =
-        useState<SCMProvider>("github");
-
-    const [owner, setOwner] = useState("");
-    const [repository, setRepository] = useState("");
-    const [changeNumber, setChangeNumber] = useState("");
+    const [changeRequestUrl, setChangeRequestUrl] =
+        useState("");
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
     async function handleSubmit(
-        event: React.SubmitEvent<HTMLFormElement>,
+        event: React.FormEvent<HTMLFormElement>,
     ) {
         event.preventDefault();
 
         setError("");
 
-        const parsedChangeNumber = Number(changeNumber);
+        const url = changeRequestUrl.trim();
 
-        if (!owner.trim()) {
-        setError("Owner is required.");
+        if (!url) {
+        setError("Pull request or merge request URL is required.");
         return;
         }
 
-        if (!repository.trim()) {
-        setError("Repository is required.");
-        return;
-        }
+        try {
+        const parsedUrl = new URL(url);
 
-        if (
-        !Number.isInteger(parsedChangeNumber) ||
-        parsedChangeNumber <= 0
-        ) {
+        if (parsedUrl.protocol !== "http:" &&
+            parsedUrl.protocol !== "https:") {
+            setError(
+            "Please enter a valid GitHub or GitLab URL.",
+            );
+            return;
+        }
+        } catch {
         setError(
-            "Change request number must be a positive integer.",
+            "Please enter a valid GitHub or GitLab URL.",
         );
         return;
         }
 
         const payload: AnalysisRequest = {
-        provider,
-        owner: owner.trim(),
-        repository: repository.trim(),
-        change_number: parsedChangeNumber,
+        change_request_url: url,
         };
 
         setLoading(true);
@@ -88,70 +83,31 @@ import type {
         onSubmit={handleSubmit}
         >
         <div className="form-grid">
-            <label className="form-field">
-            <span>Provider</span>
-
-            <select
-                value={provider}
-                onChange={(event) =>
-                setProvider(
-                    event.target.value as SCMProvider,
-                )
-                }
-                disabled={loading}
-            >
-                <option value="github">GitHub</option>
-                <option value="gitlab">GitLab</option>
-            </select>
-            </label>
-
-            <label className="form-field">
-            <span>Owner / Group</span>
+            <label className="form-field full-width">
+            <span>Change Request</span>
 
             <input
-                type="text"
-                value={owner}
+                type="url"
+                value={changeRequestUrl}
                 onChange={(event) =>
-                setOwner(event.target.value)
+                setChangeRequestUrl(event.target.value)
                 }
-                placeholder="e.g. asheeshsingh0112"
+                placeholder="https://github.com/owner/repository/pull/123"
                 disabled={loading}
+                autoComplete="off"
             />
-            </label>
 
-            <label className="form-field">
-            <span>Repository</span>
-
-            <input
-                type="text"
-                value={repository}
-                onChange={(event) =>
-                setRepository(event.target.value)
-                }
-                placeholder="e.g. ide"
-                disabled={loading}
-            />
-            </label>
-
-            <label className="form-field">
-            <span>PR / MR Number</span>
-
-            <input
-                type="number"
-                min="1"
-                step="1"
-                value={changeNumber}
-                onChange={(event) =>
-                setChangeNumber(event.target.value)
-                }
-                placeholder="e.g. 1"
-                disabled={loading}
-            />
+            <small className="form-help">
+                Paste a GitHub Pull Request or GitLab Merge Request URL.
+            </small>
             </label>
         </div>
 
         {error && (
-            <div className="form-error" role="alert">
+            <div
+            className="form-error"
+            role="alert"
+            >
             {error}
             </div>
         )}

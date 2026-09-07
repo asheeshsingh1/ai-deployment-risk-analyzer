@@ -1,12 +1,17 @@
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.db.database import get_db
+from app.db.database import Base, get_db
 from app.db.models import Repository, Service, ServicePath
 from app.main import app
 
+
+# =========================================================
+# Test database
+# =========================================================
 
 engine = create_engine(
     "sqlite:///:memory:",
@@ -22,35 +27,100 @@ TestingSessionLocal = sessionmaker(
     autocommit=False,
 )
 
-
-Repository.__table__.create(bind=engine)
-Service.__table__.create(bind=engine)
-ServicePath.__table__.create(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 
-def override_get_db():
+# =========================================================
+# Fixtures
+# =========================================================
+
+
+@pytest.fixture(autouse=True)
+def clean_database():
     db = TestingSessionLocal()
 
     try:
-        yield db
+        yield
+    finally:
+        db.rollback()
+
+        db.query(ServicePath).delete()
+        db.query(Service).delete()
+        db.query(Repository).delete()
+
+        db.commit()
+        db.close()
+
+
+@pytest.fixture
+def client():
+    def override_get_db():
+        db = TestingSessionLocal()
+
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    app.dependency_overrides.clear()
+
+
+# =========================================================
+# Helpers
+# =========================================================
+
+
+def create_repository():
+    db = TestingSessionLocal()
+
+    try:
+        repository = Repository(
+            name="ide",
+            provider="gitlab",
+            owner="asheeshsingh0112",
+            external_name="ide",
+        )
+
+        db.add(repository)
+        db.commit()
+        db.refresh(repository)
+
+        return repository.id
+
     finally:
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
+def create_service(repository_id: int):
+    db = TestingSessionLocal()
 
-client = TestClient(app)
+    try:
+        service = Service(
+            name="ide-build",
+            repository_id=repository_id,
+        )
 
-
-def setup_function():
-    with TestingSessionLocal() as db:
-        db.query(ServicePath).delete()
-        db.query(Service).delete()
-        db.query(Repository).delete()
+        db.add(service)
         db.commit()
+        db.refresh(service)
+
+        return service.id
+
+    finally:
+        db.close()
 
 
-def test_create_repository():
+# =========================================================
+# Repository
+# =========================================================
+
+
+def test_create_repository(client):
     response = client.post(
         "/api/v1/repositories",
         json={
@@ -71,20 +141,13 @@ def test_create_repository():
     assert data["external_name"] == "ide"
 
 
-def test_create_service():
-    repository = Repository(
-        name="ide",
-        provider="gitlab",
-        owner="asheeshsingh0112",
-        external_name="ide",
-    )
+# =========================================================
+# Service
+# =========================================================
 
-    with TestingSessionLocal() as db:
-        db.add(repository)
-        db.commit()
-        db.refresh(repository)
 
-        repository_id = repository.id
+def test_create_service(client):
+    repository_id = create_repository()
 
     response = client.post(
         f"/api/v1/repositories/{repository_id}/services",
@@ -102,29 +165,9 @@ def test_create_service():
     assert data["repository_id"] == repository_id
 
 
-def test_create_service_path():
-    repository = Repository(
-        name="ide",
-        provider="gitlab",
-        owner="asheeshsingh0112",
-        external_name="ide",
-    )
-
-    with TestingSessionLocal() as db:
-        db.add(repository)
-        db.commit()
-        db.refresh(repository)
-
-        service = Service(
-            name="ide-build",
-            repository_id=repository.id,
-        )
-
-        db.add(service)
-        db.commit()
-        db.refresh(service)
-
-        service_id = service.id
+def test_create_service_path(client):
+    repository_id = create_repository()
+    service_id = create_service(repository_id)
 
     response = client.post(
         f"/api/v1/services/{service_id}/paths",
@@ -141,21 +184,17 @@ def test_create_service_path():
     assert data["path_prefix"] == "images"
 
 
-def test_list_services():
-    repository = Repository(
-        name="ide",
-        provider="gitlab",
-        owner="asheeshsingh0112",
-        external_name="ide",
-    )
+# =========================================================
+# Service listing
+# =========================================================
 
-    with TestingSessionLocal() as db:
-        db.add(repository)
-        db.commit()
-        db.refresh(repository)
 
-        repository_id = repository.id
+def test_list_services(client):
+    repository_id = create_repository()
 
+    db = TestingSessionLocal()
+
+    try:
         db.add(
             Service(
                 name="ide-build",
@@ -172,6 +211,9 @@ def test_list_services():
 
         db.commit()
 
+    finally:
+        db.close()
+
     response = client.get(
         f"/api/v1/repositories/{repository_id}/services",
     )
@@ -185,30 +227,13 @@ def test_list_services():
     assert data[1]["name"] == "ide-build"
 
 
-def test_list_service_paths():
-    repository = Repository(
-        name="ide",
-        provider="gitlab",
-        owner="asheeshsingh0112",
-        external_name="ide",
-    )
+def test_list_service_paths(client):
+    repository_id = create_repository()
+    service_id = create_service(repository_id)
 
-    with TestingSessionLocal() as db:
-        db.add(repository)
-        db.commit()
-        db.refresh(repository)
+    db = TestingSessionLocal()
 
-        service = Service(
-            name="ide-build",
-            repository_id=repository.id,
-        )
-
-        db.add(service)
-        db.commit()
-        db.refresh(service)
-
-        service_id = service.id
-
+    try:
         db.add(
             ServicePath(
                 service_id=service_id,
@@ -225,6 +250,9 @@ def test_list_service_paths():
 
         db.commit()
 
+    finally:
+        db.close()
+
     response = client.get(
         f"/api/v1/services/{service_id}/paths",
     )
@@ -238,7 +266,12 @@ def test_list_service_paths():
     assert data[1]["path_prefix"] == "images"
 
 
-def test_service_requires_existing_repository():
+# =========================================================
+# Validation / not found
+# =========================================================
+
+
+def test_service_requires_existing_repository(client):
     response = client.post(
         "/api/v1/repositories/99999/services",
         json={
@@ -250,7 +283,7 @@ def test_service_requires_existing_repository():
     assert response.status_code == 404
 
 
-def test_service_path_requires_existing_service():
+def test_service_path_requires_existing_service(client):
     response = client.post(
         "/api/v1/services/99999/paths",
         json={
@@ -261,20 +294,8 @@ def test_service_path_requires_existing_service():
     assert response.status_code == 404
 
 
-def test_repository_id_mismatch_is_rejected():
-    repository = Repository(
-        name="ide",
-        provider="gitlab",
-        owner="asheeshsingh0112",
-        external_name="ide",
-    )
-
-    with TestingSessionLocal() as db:
-        db.add(repository)
-        db.commit()
-        db.refresh(repository)
-
-        repository_id = repository.id
+def test_repository_id_mismatch_is_rejected(client):
+    repository_id = create_repository()
 
     response = client.post(
         f"/api/v1/repositories/{repository_id}/services",

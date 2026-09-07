@@ -33,14 +33,21 @@ import type {
 
         try {
         const body = (await response.json()) as {
-            detail?: string;
+            detail?: string | {
+            message?: string;
+            };
         };
 
-        if (body.detail) {
+        if (typeof body.detail === "string") {
             message = body.detail;
+        } else if (
+            body.detail &&
+            typeof body.detail.message === "string"
+        ) {
+            message = body.detail.message;
         }
         } catch {
-        // Keep the default error message when the response isn't JSON.
+        // Keep the default error message when response isn't JSON.
         }
 
         throw new ApiError(message, response.status);

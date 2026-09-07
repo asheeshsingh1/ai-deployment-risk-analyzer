@@ -1078,4 +1078,69 @@
     .section-heading {
         align-items: flex-start;
     }
+
+
+    .url-input-wrapper {
+        width: 100%;
+    }
+
+    .url-input-wrapper .form-field {
+        width: 100%;
+    }
+
+    .url-input-wrapper input {
+        width: 100%;
+        min-height: 52px;
+        font-size: 0.98rem;
+    }
+
+    .form-help {
+        margin: 10px 0 0;
+        color: #6b7280;
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    .url-examples {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .example-link {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        color: #4f46e5;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .example-link:hover {
+        text-decoration: underline;
+    }
+
+    .example-link:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .section-description {
+        max-width: 680px;
+        margin: 8px 0 0;
+        color: #6b7280;
+        line-height: 1.55;
+        font-size: 0.9rem;
+    }
+
+    .form-field.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-help {
+        margin-top: 0.35rem;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+    }
 }

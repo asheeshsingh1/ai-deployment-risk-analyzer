@@ -55,23 +55,34 @@ function App() {
             </section>
 
             <section className="analysis-section">
-            <div className="section-heading">
-                <div>
-                <p className="card-label">
-                    Change Analysis
-                </p>
+                <div className="section-heading">
+                    <div>
+                    <p className="card-label">
+                        Change Analysis
+                    </p>
 
-                <h3>Analyze a pull or merge request</h3>
+                    <h3>
+                        Analyze a pull or merge request
+                    </h3>
+
+                    <p className="section-description">
+                        Paste a GitHub Pull Request or GitLab
+                        Merge Request URL. The analyzer will
+                        automatically identify the repository,
+                        service, and change request.
+                    </p>
+                    </div>
+
+                    <span className="step-indicator">
+                    Step 1
+                    </span>
                 </div>
 
-                <span className="step-indicator">
-                Step 1
-                </span>
-            </div>
-
-            <AnalysisForm
-                onAnalysisComplete={handleAnalysisComplete}
-            />
+                <AnalysisForm
+                    onAnalysisComplete={
+                    handleAnalysisComplete
+                    }
+                />
             </section>
 
             {analysis ? (
