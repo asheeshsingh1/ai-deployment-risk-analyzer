@@ -39,7 +39,9 @@ class AnalysisRequest(BaseModel):
     )
 
 
-def _raise_scm_http_error(exc: SCMProviderError) -> None:
+def _raise_scm_http_error(
+    exc: SCMProviderError,
+) -> None:
     if isinstance(exc, SCMAuthenticationError):
         raise HTTPException(
             status_code=502,
@@ -88,37 +90,48 @@ def analyze_change(
     request: AnalysisRequest,
     db: Session = Depends(get_db),
 ) -> ChangeRequestRiskAssessment:
-    provider = request.provider.lower()
+    provider = request.provider.lower().strip()
 
     try:
         scm_provider = get_scm_provider(provider)
 
         change_request = scm_provider.get_change_request(
-            owner=request.owner,
-            repository=request.repository,
+            owner=request.owner.strip(),
+            repository=request.repository.strip(),
             change_number=request.change_number,
         )
 
         analyzer = ChangeAnalyzer(db)
 
         change_analysis = analyzer.analyze(
-            repository=f"{request.owner}/{request.repository}",
+            repository=(f"{request.owner.strip()}/" f"{request.repository.strip()}"),
             provider=provider,
             change_request=change_request,
         )
 
         risk_service = ChangeRequestRiskService(db)
 
-        return risk_service.assess(
+        assessment = risk_service.assess(
             change_analysis=change_analysis,
             change_request=change_request,
         )
 
+        db.commit()
+
+        return assessment
+
     except SCMProviderError as exc:
+        db.rollback()
         _raise_scm_http_error(exc)
 
     except ValueError as exc:
+        db.rollback()
+
         raise HTTPException(
             status_code=400,
             detail=str(exc),
         ) from exc
+
+    except Exception:
+        db.rollback()
+        raise

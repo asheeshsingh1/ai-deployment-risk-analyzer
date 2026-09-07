@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.analyzer.change_signals import ChangeSignalDetector
+from app.analyzer.registry import AnalyzerRegistry
 from app.analyzer.repository import AnalyzerRepository
 from app.analyzer.schemas import ChangeAnalysis
 from app.scm.schemas import CodeChangeRequest
@@ -9,6 +10,7 @@ from app.scm.schemas import CodeChangeRequest
 class ChangeAnalyzer:
     def __init__(self, db: Session):
         self.repository = AnalyzerRepository(db)
+        self.registry = AnalyzerRegistry(db)
         self.signal_detector = ChangeSignalDetector()
 
     @staticmethod
@@ -35,24 +37,40 @@ class ChangeAnalyzer:
             repository_id=repository.id,
         )
 
-        if not service_paths:
-            return [], True
+        # Explicit service ownership is authoritative.
+        if service_paths:
+            affected_services: set[str] = set()
 
-        affected_services: set[str] = set()
+            for file in change_request.files:
+                file_path = self._normalize_path(
+                    file.filename,
+                )
 
-        for file in change_request.files:
-            file_path = self._normalize_path(file.filename)
+                for service, service_path in service_paths:
+                    prefix = self._normalize_path(
+                        service_path.path_prefix,
+                    )
 
-            for service, service_path in service_paths:
-                prefix = self._normalize_path(service_path.path_prefix)
+                    if not prefix:
+                        continue
 
-                if not prefix:
-                    continue
+                    if file_path == prefix or file_path.startswith(
+                        f"{prefix}/",
+                    ):
+                        affected_services.add(
+                            service.name,
+                        )
 
-                if file_path == prefix or file_path.startswith(f"{prefix}/"):
-                    affected_services.add(service.name)
+            return sorted(affected_services), True
 
-        return sorted(affected_services), True
+        # Repository exists but has no explicit ownership
+        # configuration. Automatically create/discover a service.
+        service_registration = self.registry.ensure_service(
+            repository_id=repository.id,
+            change_request=change_request,
+        )
+
+        return [service_registration.service_name], True
 
     def analyze(
         self,
@@ -61,6 +79,13 @@ class ChangeAnalyzer:
         change_request: CodeChangeRequest,
     ) -> ChangeAnalysis:
         owner, repo_name = repository.split("/", 1)
+
+        # Automatically register previously unknown repositories.
+        self.registry.ensure_repository(
+            provider=provider,
+            owner=owner,
+            repo_name=repo_name,
+        )
 
         (
             affected_services,
@@ -80,10 +105,14 @@ class ChangeAnalyzer:
         )
 
         if not repository_found:
-            risk_signals.append("repository_not_registered")
+            risk_signals.append(
+                "repository_not_registered",
+            )
 
         elif not affected_services:
-            risk_signals.append("affected_service_not_identified")
+            risk_signals.append(
+                "affected_service_not_identified",
+            )
 
         risk_signals = sorted(set(risk_signals))
 

@@ -157,7 +157,7 @@ def test_unmatched_path_is_unmapped():
     db.close()
 
 
-def test_unregistered_repository_is_detected():
+def test_unknown_repository_is_registered_and_mapped():
     db = TestingSessionLocal()
 
     change_request = CodeChangeRequest(
@@ -188,14 +188,9 @@ def test_unregistered_repository_is_detected():
         change_request=change_request,
     )
 
-    assert result.affected_services == []
-
-    assert result.service_mapping_status == "unmapped"
-
-    assert result.risk_signals == [
-        "infrastructure_change",
-        "repository_not_registered",
-    ]
+    assert result.affected_services == ["images-service"]
+    assert result.service_mapping_status == "mapped"
+    assert result.risk_signals == ["infrastructure_change"]
 
     db.close()
 
@@ -237,7 +232,10 @@ def test_detects_dependency_change():
 
     assert result.risk_signals == [
         "dependency_change",
-        "repository_not_registered",
+    ]
+
+    assert result.affected_services == [
+        "repository-service",
     ]
 
     db.close()
