@@ -767,22 +767,49 @@
     }
 
     .code-diff {
-    margin: 0;
-    padding: 16px;
+        margin: 0;
+        padding: 0;
 
-    overflow-x: auto;
+        overflow-x: auto;
 
-    border-top: 1px solid #e8ebef;
+        border-top: 1px solid #e8ebef;
 
-    color: #475467;
-    background: #f8f9fb;
+        background: #f8f9fb;
 
-    font-family:
-        "SFMono-Regular", Consolas, "Liberation Mono",
-        monospace;
+        font-family:
+            "SFMono-Regular", Consolas, "Liberation Mono",
+            monospace;
 
-    font-size: 12px;
-    line-height: 1.65;
+        font-size: 12px;
+        line-height: 1.65;
+    }
+
+    .diff-line {
+        display: block;
+
+        min-width: max-content;
+        padding: 0 16px;
+
+        white-space: pre;
+    }
+
+    .diff-context {
+        color: #475467;
+    }
+
+    .diff-addition {
+        color: #216e39;
+        background: #e6ffed;
+    }
+
+    .diff-deletion {
+        color: #b42318;
+        background: #ffebe9;
+    }
+
+    .diff-hunk {
+        color: #596579;
+        background: #f0f2f5;
     }
 
     /* =========================================================

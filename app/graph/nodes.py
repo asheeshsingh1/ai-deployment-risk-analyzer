@@ -1,8 +1,27 @@
+import logging
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.config import get_settings
 from app.graph.schemas import RiskGraphState
+
+
+logger = logging.getLogger(__name__)
+
+
+AI_UNAVAILABLE_EXPLANATION = (
+    "AI analysis is currently unavailable because the Gemini service "
+    "has reached its usage limit or could not be reached. "
+    "The risk assessment is based entirely on the deterministic "
+    "risk engine."
+)
+
+AI_UNAVAILABLE_RECOMMENDATION = (
+    "AI recommendations are currently unavailable. "
+    "Use the deterministic risk factors and historical deployment "
+    "evidence to make the deployment decision."
+)
 
 
 def prepare_context(
@@ -25,7 +44,6 @@ def prepare_context(
             continue
 
         deployment_history = historical.deployments
-
         incident_history = historical.incidents
 
         historical_sections.append(
@@ -134,17 +152,18 @@ def generate_analysis(
 ) -> RiskGraphState:
     settings = get_settings()
 
-    llm = ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.require_gemini_api_key(),
-        temperature=0,
-    )
+    try:
+        llm = ChatGoogleGenerativeAI(
+            model=settings.gemini_model,
+            google_api_key=settings.require_gemini_api_key(),
+            temperature=0,
+        )
 
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                """
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """
 You are a senior site reliability engineer reviewing
 a proposed production deployment.
 
@@ -179,43 +198,56 @@ A concise explanation in 2-4 paragraphs.
 RECOMMENDATION:
 A concise actionable deployment recommendation.
 """,
-            ),
-            (
-                "human",
-                "{context}",
-            ),
-        ]
-    )
-
-    chain = prompt | llm
-
-    response = chain.invoke(
-        {
-            "context": state["context"],
-        }
-    )
-
-    content = str(response.content)
-
-    explanation = content
-    recommendation = ""
-
-    if "RECOMMENDATION:" in content:
-        explanation, recommendation = content.split(
-            "RECOMMENDATION:",
-            1,
+                ),
+                (
+                    "human",
+                    "{context}",
+                ),
+            ]
         )
 
-    explanation = explanation.replace(
-        "EXPLANATION:",
-        "",
-        1,
-    ).strip()
+        chain = prompt | llm
 
-    recommendation = recommendation.strip()
+        response = chain.invoke(
+            {
+                "context": state["context"],
+            }
+        )
 
-    return {
-        **state,
-        "explanation": explanation,
-        "recommendation": recommendation,
-    }
+        content = str(response.content)
+
+        explanation = content
+        recommendation = ""
+
+        if "RECOMMENDATION:" in content:
+            explanation, recommendation = content.split(
+                "RECOMMENDATION:",
+                1,
+            )
+
+        explanation = explanation.replace(
+            "EXPLANATION:",
+            "",
+            1,
+        ).strip()
+
+        recommendation = recommendation.strip()
+
+        return {
+            **state,
+            "explanation": explanation,
+            "recommendation": recommendation,
+        }
+
+    except Exception:
+        logger.warning(
+            "AI analysis unavailable. "
+            "Continuing with deterministic risk assessment.",
+            exc_info=True,
+        )
+
+        return {
+            **state,
+            "explanation": AI_UNAVAILABLE_EXPLANATION,
+            "recommendation": AI_UNAVAILABLE_RECOMMENDATION,
+        }
