@@ -50,7 +50,30 @@ Phase 1 provides the application foundation:
 
 ## Setup
 
-Copy the environment file:
+Clone Repo:
+```bash
+git clone https://github.com/<your-username>/deployment-risk-analyzer.git
+```
 
+Change Directory:
+```bash
+cd deployment-risk-analyzer
+```
+
+Copy env:
 ```bash
 cp .env.example .env
+```
+
+Setup you api keys into the env file.
+
+Docker Commands:
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Access Dashboard/UI:
+```bash
+http://localhost:5173
+```
