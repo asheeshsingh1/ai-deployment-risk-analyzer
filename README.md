@@ -52,7 +52,7 @@ Phase 1 provides the application foundation:
 
 Clone Repo:
 ```bash
-git clone https://github.com/<your-username>/deployment-risk-analyzer.git
+git clone https://github.com/asheeshsingh1/ai-deployment-risk-analyzer.git
 ```
 
 Change Directory:
